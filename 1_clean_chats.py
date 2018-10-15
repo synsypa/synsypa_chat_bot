@@ -2,6 +2,7 @@ import json
 import itertools
 import re
 import csv
+import numpy as np
 
 # Load Discord JSON
 with open('discord_20181011.txt') as h:
@@ -18,6 +19,7 @@ chats = [msg for mid, msg in sorted(dis_json['data']['106536439809859584'].items
 # Clean and Parse Message and response
 # Initialize
 responses = []
+messages_list = []
 k_msg, o_msg = [], []
 k_time, o_time = None, None
 o_speak = None
@@ -109,8 +111,14 @@ if need_resp and resp_ready and k_time < o_time + (5 * 60 * 1000):
     responses.append((' '.join(o_msg), ' '.join(k_msg)))
     
 # Output message,response as csv
-with open('conversations.csv', 'w') as c:
-    csv_writer = csv.writer(c)
-    for row in responses:
-        csv_writer.writerow(row)
+# with open('conversations.csv', 'w') as c:
+#    conv_writer = csv.writer(c)
+#    for row in responses:
+#        conv_writer.writerow(row)
+np.save('conversations.npy', responses)
 
+# Output messages only
+with open('messages.txt', 'w') as m:
+    msg_writer = csv.writer(m)
+    for row in messages_list:
+        msg_writer.writerow(row)
