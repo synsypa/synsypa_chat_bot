@@ -119,6 +119,5 @@ np.save('conversations.npy', responses)
 
 # Output messages only
 with open('messages.txt', 'w') as m:
-    msg_writer = csv.writer(m)
-    for row in messages_list:
-        msg_writer.writerow(row)
+    for msg, resp in responses:
+        m.write(msg + ' ' + resp + ' ')
