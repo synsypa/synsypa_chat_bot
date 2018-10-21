@@ -43,6 +43,7 @@ for message in chats:
         
     # Clean out custom emoji
     single_msg['m'] = re.sub("([\<]).*?([\>])", "", single_msg['m']).strip()
+    # Remove some punctuation
     
     # Parse Others' Messages
     if user_ref[single_msg['u']] != "synsypa":
