@@ -7,6 +7,9 @@ from sklearn.utils import shuffle
 import pickle
 import os
 
+# Remove Config Warning
+os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
+
 # Functions
 def make_train_batch(x_train, y_train, n_examples, batch_size, max_len, corpus):
     rand = randint(0, n_examples - batch_size - 1)
@@ -93,6 +96,7 @@ n_iters = 500000
 word_vec_dim = 200
 
 # Load Corpus
+print('Loading Data...')
 with open("corpus.txt", "rb") as c:
     corpus = pickle.load(c)
 vocab_size = len(corpus)
@@ -126,7 +130,7 @@ optimizer = tf.train.AdamOptimizer(1e-4).minimize(loss)
 
 sess = tf.Session()
 saver = tf.train.Saver()
-#saver.restore(sess, tf.train.latest_checkpoint('models/'))
+saver.restore(sess, tf.train.latest_checkpoint('models/'))
 sess.run(tf.global_variables_initializer())
 
 # Uploading results to Tensorboard
@@ -144,6 +148,7 @@ encoder_test_str = ["sup",
 
 zeros = np.zeros((1), dtype='int32')
 
+print('Starting Training...')
 # Training
 for i in range(n_iters):
     encode_train, decode_target_train, decode_input_train = make_train_batch(X_tr, y_tr, n_examples, batch_size, max_encode, corpus)
@@ -156,8 +161,6 @@ for i in range(n_iters):
     
     if (i % 50 == 0):
         print('Current loss:', current_loss, 'at iteration', i)
-        summary = sess.run(merged, feed_dict=feed_dict)
-        writer.add_summary(summary, i)
     if (i % 25 == 0 and i != 0):
         num = randint(0,len(encoder_test_str) - 1)
         print(encoder_test_str[num])
@@ -168,6 +171,8 @@ for i in range(n_iters):
         feed_dict.update({feed_prev: True})
         ids = (sess.run(decode_pred, feed_dict=feed_dict))
         print(ids_to_sentences(ids, corpus))
-    if (i % 10000 == 0 and i != 0):
+    if (i % 50000 == 0 and i != 0):
+        summary = sess.run(merged, feed_dict=feed_dict)
+        writer.add_summary(summary, i)
         savePath = saver.save(sess, "models/pretrained_seq2seq.ckpt", global_step=i)
         
