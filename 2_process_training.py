@@ -47,7 +47,7 @@ def create_training(conversation, corpus, max_len):
         encoder_msg[encode_i + 1] = corpus.index('<END>')
         x_train[i] = encoder_msg
         # integerize decoder string and add to array
-        for decode_i, word in enumerate(key_split):
+        for decode_i, word in enumerate(val_split):
             if word in corpus:
                 decoder_msg[decode_i] = corpus.index(word)
             else:
@@ -62,6 +62,7 @@ def create_training(conversation, corpus, max_len):
     
 # Create Corpus
 corpus = process_corpus('messages.txt')
+print('Corpus length = ' + str(len(corpus)))
 with open('corpus.txt', 'wb') as c:
     pickle.dump(corpus, c)
     
@@ -69,5 +70,7 @@ with open('corpus.txt', 'wb') as c:
 conversations = np.load('conversations.npy')
 # Using 15 as max encoding length
 n_examples, X_tr, y_tr = create_training(conversations, corpus, 15)
+print('X Train length = ' + str(len(X_tr)))
+print('Y Train length = ' + str(len(y_tr)))
 np.save('Seq2SeqXTrain.npy', X_tr)
 np.save('Seq2SeqYTrain.npy', y_tr)

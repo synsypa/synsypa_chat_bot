@@ -20,6 +20,20 @@ streamInstance.setFormatter(fmt)
 log.addHandler(streamInstance)
 log.setLevel(logging.DEBUG)
 
+def log_msg(data):
+    """
+    Accepts a list of data elements, removes the  u'\u241e'character
+    from each element, and then joins the elements using u'\u241e'.
+    
+    Messages should be constructed in the format:
+        
+        {message_type}\u241e{data}
+
+    where {data} should be a \u241e delimited row.
+    """
+    tmp = [d.replace(u'\u241e', ' ') for d in data]
+    return u'\u241e'.join(tmp)
+
 # Configure Bot
 description = '''
             A Bot to reply as synsypa using RNN ChatBot
@@ -33,6 +47,38 @@ def on_ready():
     log.info(log_msg(['login', bot.user.name, bot.user.id]))
 
 ## Prep Model
+# Utility Functions
+def get_test_input(message, corpus, max_len):
+    encoder_msg = np.full((max_len), corpus.index('<FILL>'), dtype='int32')
+    msg_split = message.lower().split()
+    for i, word in enumerate(msg_split):
+        if word in corpus:
+            encoder_msg[i] = corpus.index(word)
+        else: 
+            continue
+    encoder_msg[i + 1] = corpus.index('<END>')
+    encoder_msg = encoder_msg[::-1]
+    encoder_msg_list=[]
+    for n in encoder_msg:
+        encoder_msg_list.append([n])
+    return encoder_msg_list
+
+def ids_to_sentences(ids, corpus):
+    end_index = corpus.index('<END>')
+    filler_index = corpus.index('<FILL>')
+    full_str = ""
+    resp_list=[]
+    for num in ids:
+        if (num[0] == end_index or num[0] == filler_index):
+            resp_list.append(full_str)
+            full_str = ""
+        else:
+            full_str = full_str + corpus[num[0]] + " "
+    if full_str:
+        resp_list.append(full_str)
+    resp_list = [i for i in resp_list if i]
+    return resp_list
+
 # Load in data structures
 with open("corpus.txt", "rb") as c:
     corpus = pickle.load(c)
@@ -68,16 +114,16 @@ sess = tf.Session()
 # Load in pretrained model
 saver = tf.train.Saver()
 saver.restore(sess, tf.train.latest_checkpoint('models'))
-zeroVector = np.zeros((1), dtype='int32')
+zero_vector = np.zeros((1), dtype='int32')
 
 def respond(input_str):
-    input_vector = model.get_test_input(input_str, corpus, max_encode)
-    feed_dict = {encoder_inputs[t]: input_vector[t] for t in range(max_encode)}
-    feed_dict.update({decoder_labels[t]: zero_vector for t in range(max_decode)})
-    feed_dict.update({decoder_inputs[t]: zero_vector for t in range(max_decode)})
+    input_vector = get_test_input(input_str, corpus, max_encode)
+    feed_dict = {encode_inputs[t]: input_vector[t] for t in range(max_encode)}
+    feed_dict.update({decode_labels[t]: zero_vector for t in range(max_decode)})
+    feed_dict.update({decode_inputs[t]: zero_vector for t in range(max_decode)})
     feed_dict.update({feed_prev: True})
     ids = (sess.run(decode_pred, feed_dict=feed_dict))
-    return model.ids_to_sentences(ids, corpus)
+    return ' '.join(ids_to_sentences(ids, corpus))
 
 @bot.command(pass_context=True)  
 @asyncio.coroutine
@@ -95,10 +141,6 @@ def listen(ctx, *text : str):
     yield from bot.say(output)
 
     log.info(log_msg(['sent_message', 'me', ctx.message.channel.name]))
-
-    # Clean up request regardless of success
-    yield from bot.delete_message(ctx.message)
-    log.info(log_msg(['deleted_request', ctx.message.id]))
     
 if __name__=='__main__':
     if os.environ['DISCORD_SYNSYPA_TOKEN']:
