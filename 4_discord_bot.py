@@ -113,7 +113,8 @@ sess = tf.Session()
 
 # Load in pretrained model
 saver = tf.train.Saver()
-saver.restore(sess, tf.train.latest_checkpoint('models'))
+#saver.restore(sess, tf.train.latest_checkpoint('models'))
+saver.restore(sess, 'models/pretrained_seq2seq.ckpt-300000')
 zero_vector = np.zeros((1), dtype='int32')
 
 def respond(input_str):
