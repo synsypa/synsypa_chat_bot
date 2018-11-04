@@ -114,11 +114,12 @@ sess = tf.Session()
 # Load in pretrained model
 saver = tf.train.Saver()
 #saver.restore(sess, tf.train.latest_checkpoint('models'))
-saver.restore(sess, 'models/pretrained_seq2seq.ckpt-300000')
+saver.restore(sess, 'models/pretrained_seq2seq.ckpt-400000')
 zero_vector = np.zeros((1), dtype='int32')
 
 def respond(input_str):
-    input_vector = get_test_input(input_str, corpus, max_encode)
+    truncated = input_str.split()[0:15]
+    input_vector = get_test_input(truncated, corpus, max_encode)
     feed_dict = {encode_inputs[t]: input_vector[t] for t in range(max_encode)}
     feed_dict.update({decode_labels[t]: zero_vector for t in range(max_decode)})
     feed_dict.update({decode_inputs[t]: zero_vector for t in range(max_decode)})
@@ -134,7 +135,9 @@ def listen(ctx, *text : str):
                       ctx.message.author.name, 
                       ctx.message.channel.name,
                       ' '.join(text)]))
-
+    
+    truncated = 
+    
     output = respond(str(text))
 
     log.info(log_msg(['formatted_self', output]))
