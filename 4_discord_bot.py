@@ -39,7 +39,7 @@ description = '''
             A Bot to reply as synsypa using RNN ChatBot
             '''
 
-bot = commands.Bot(command_prefix='%', description=description)
+bot = commands.Bot(command_prefix='&', description=description)
 
 @bot.event
 @asyncio.coroutine
