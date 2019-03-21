@@ -117,9 +117,16 @@ def respond(input_str, encoder, decoder, searcher, vocab):
     
     # evaluate sentence
     output_words = bh.evaluate(encoder, decoder, searcher, vocab, clean_str)
-    output_words[:] = [x for x in output_words if not (x == '<END>' or x == '<PAD>')]
+    output_ended = []
+    for word in output_words:
+        if word == '<END>':
+            break
+        if word == '<PAD>':
+            continue
+        else:
+            output_ended.append(word)
     
-    output_str = ' '.join(output_words)
+    output_str = ' '.join(output_ended)
     output_str = re.sub(r"\s([?!.])", r"\1", output_str).strip()
     
     return output_str
