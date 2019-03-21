@@ -5,7 +5,7 @@ import csv
 import numpy as np
 
 # Load Discord JSON
-with open('discord_20181011.txt') as h:
+with open('chat_data/discord_20190318.txt') as h:
     dis_json = json.load(h)
 
 # Create user index reference
@@ -43,8 +43,12 @@ for message in chats:
         
     # Clean out custom emoji
     single_msg['m'] = re.sub("([\<]).*?([\>])", "", single_msg['m']).strip()
-    # Remove periods that end sentences
-    single_msg['m'] = re.sub("\.(?!\w)", "", single_msg['m'])
+    # +# Remove periods that end sentences
+    # single_msg['m'] = re.sub("\.(?!\w)", "", single_msg['m'])
+    # Separate Punctuation
+    single_msg['m'] = re.sub(r"([.!?])", r" \1", single_msg['m'])
+    # Make lower case
+    single_msg['m'] = single_msg['m'].lower()
     
     # Parse Others' Messages
     if user_ref[single_msg['u']] != "synsypa":
@@ -117,9 +121,9 @@ if need_resp and resp_ready and k_time < o_time + (5 * 60 * 1000):
 #    conv_writer = csv.writer(c)
 #    for row in responses:
 #        conv_writer.writerow(row)
-np.save('conversations.npy', responses)
+np.save('chat_data/clean_conversations.npy', responses)
 
-# Output messages only
-with open('messages.txt', 'w') as m:
-    for msg, resp in responses:
-        m.write(msg + ' ' + resp + ' ')
+# Output messages only (Deprecated for Torch Version)
+#with open('chat_data/clean_messages.txt', 'w') as m:
+#    for msg, resp in responses:
+#        m.write(msg + ' ' + resp + ' ')
