@@ -146,10 +146,12 @@ async def listen(ctx, *text : str):
         
     output = respond(str(text), encoder, decoder, searcher, vocab)
 
-    log.info(log_msg(['formatted_self', output]))
-
+    log.info(log_msg(['formatted_msg', output]))
+    
+    if not output:
+        output = 'Error: Empty Response'
+    
     await ctx.channel.send(output)
-
     log.info(log_msg(['sent_message', ctx.message.channel.name]))
     
 if __name__=='__main__':
