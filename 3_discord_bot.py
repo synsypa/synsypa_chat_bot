@@ -60,10 +60,10 @@ hidden_size = 500
 encoder_n_layers = 2
 decoder_n_layers = 2
 dropout = 0.1
-batch_size = 64
+batch_size = 32
 
 # Set checkpoint to load from; set to None if starting from scratch
-loadModel = 'models/save/synsypa_model/2-2_500/9000_checkpoint.tar'
+loadModel = 'models/save/synsypa_model_3/2-2_500/20000_checkpoint.tar'
 
 # If loading on same machine the model was trained on
 checkpoint = torch.load(loadModel)

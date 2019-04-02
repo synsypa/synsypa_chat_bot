@@ -396,7 +396,7 @@ def train(input_variable, lengths, target_variable, mask, max_target_len,
 def trainIters(model_name, vocab, convos, 
                encoder, decoder, encoder_optimizer, decoder_optimizer,
                embedding, encoder_n_layers, decoder_n_layers, teacher_forcing_ratio,
-               save_dir, n_iteration, batch_size,
+               save_dir, n_iteration, batch_size, hidden_size,
                print_every, save_every, clip, loadFilename):
 
     # Load batches for each iteration
@@ -408,6 +408,7 @@ def trainIters(model_name, vocab, convos,
     start_iteration = 1
     print_loss = 0
     if loadFilename:
+        checkpoint = torch.load(loadFilename)
         start_iteration = checkpoint['iteration'] + 1
 
     # Training loop
