@@ -43,8 +43,8 @@ for message in chats:
         
     # Clean out custom emoji
     single_msg['m'] = re.sub("([\<]).*?([\>])", "", single_msg['m']).strip()
-    # +# Remove periods that end sentences
-    # single_msg['m'] = re.sub("\.(?!\w)", "", single_msg['m'])
+    # Remove non-terminating punctuation
+    single_msg['m'] = re.sub(r"[^a-zA-Z0-9.!?\s]+", "", single_msg['m'])
     # Separate Punctuation
     single_msg['m'] = re.sub(r"([.!?])", r" \1", single_msg['m'])
     # Make lower case

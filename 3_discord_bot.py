@@ -60,10 +60,10 @@ hidden_size = 500
 encoder_n_layers = 2
 decoder_n_layers = 2
 dropout = 0.1
-batch_size = 64
+batch_size = 32
 
 # Set checkpoint to load from; set to None if starting from scratch
-loadModel = 'models/save/synsypa_model/2-2_500/9000_checkpoint.tar'
+loadModel = 'models/save/synsypa_model_3/2-2_500/20000_checkpoint.tar'
 
 # If loading on same machine the model was trained on
 checkpoint = torch.load(loadModel)
@@ -117,9 +117,16 @@ def respond(input_str, encoder, decoder, searcher, vocab):
     
     # evaluate sentence
     output_words = bh.evaluate(encoder, decoder, searcher, vocab, clean_str)
-    output_words[:] = [x for x in output_words if not (x == '<END>' or x == '<PAD>')]
+    output_ended = []
+    for word in output_words:
+        if word == '<END>':
+            break
+        if word == '<PAD>':
+            continue
+        else:
+            output_ended.append(word)
     
-    output_str = ' '.join(output_words)
+    output_str = ' '.join(output_ended)
     output_str = re.sub(r"\s([?!.])", r"\1", output_str).strip()
     
     return output_str
@@ -139,10 +146,12 @@ async def listen(ctx, *text : str):
         
     output = respond(str(text), encoder, decoder, searcher, vocab)
 
-    log.info(log_msg(['formatted_self', output]))
-
+    log.info(log_msg(['formatted_msg', output]))
+    
+    if not output:
+        output = 'Error: Empty Response'
+    
     await ctx.channel.send(output)
-
     log.info(log_msg(['sent_message', ctx.message.channel.name]))
     
 if __name__=='__main__':

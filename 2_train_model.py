@@ -10,13 +10,13 @@ USE_CUDA = torch.cuda.is_available()
 device = torch.device("cuda" if USE_CUDA else "cpu")
 
 # Actually Train Model
-MAX_LENGTH = 20
+MAX_LENGTH = 18
 convos = np.load('chat_data/clean_conversations.npy')
 vocab = bot.createVocab(convos, 'synsypa_vocab')
 convo_filtered = bot.filterConvos(convos, MAX_LENGTH)
 
 # Configure models
-model_name = 'synsypa_model_2'
+model_name = 'synsypa_model_3'
 attn_model = 'dot'
 #attn_model = 'general'
 #attn_model = 'concat'
@@ -27,7 +27,7 @@ dropout = 0.1
 batch_size = 64
 
 # Set checkpoint to load from; set to None if starting from scratch
-#loadFilename = 'models/save/synsypa_model/2-2_500/9000_checkpoint.tar'
+# loadFilename = 'models/save/synsypa_model_2/2-2_500/10000_checkpoint.tar'
 loadFilename = None
 
 # Load model if a loadFilename is provided
@@ -65,9 +65,9 @@ clip = 50.0
 teacher_forcing_ratio = 1.0
 learning_rate = 0.0001
 decoder_learning_ratio = 5.0
-n_iteration = 10000
-print_every = 1
-save_every = 1000
+n_iteration = 20000
+print_every = 10
+save_every = 5000
 
 save_dir = os.path.join("models", "save")
 
@@ -88,5 +88,5 @@ print("Starting Training!")
 bot.trainIters(model_name, vocab, convo_filtered, 
                encoder, decoder, encoder_optimizer, decoder_optimizer,
                embedding, encoder_n_layers, decoder_n_layers, teacher_forcing_ratio,
-               save_dir, n_iteration, batch_size,
+               save_dir, n_iteration, batch_size, hidden_size,
                print_every, save_every, clip, loadFilename)
