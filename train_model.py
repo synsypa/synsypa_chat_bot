@@ -72,9 +72,7 @@ def createVocab(convo_array, vocab_name):
     return vocab
 
 ## Improve training set
-def filterRareWords(vocab, convo_array, min_count = 2):
-    # Trim words used under the min_count from the voc
-    vocab.trim(min_count)
+def filterConvos(convo_array, vocab):
     # Filter out pairs with trimmed words
     keep_pairs = []
     for pair in convo_array:
@@ -93,19 +91,19 @@ def filterRareWords(vocab, convo_array, min_count = 2):
                 keep_output = False
                 break
 
-        # Only keep pairs that do not contain trimmed word(s) in their input or output sentence
+        # Only keep pairs that do not contain filtered word(s) in their input or output sentence
         if keep_input and keep_output:
             keep_pairs.append(pair)
 
-    print(f"Trimmed from {len(convo_array)} pairs to {len(keep_pairs)}, {len(keep_pairs) / len(convo_array):.4f} of total")
+    print(f"Filtered from {len(convo_array)} pairs to {len(keep_pairs)}, {len(keep_pairs) / len(convo_array):.4f} of total")
     return keep_pairs
 
-def filterPair(p, max_length = 20):
+def trimPair(p, max_length = 20):
     # Input sequences need to preserve the last word for EOS token
     return len(p[0].split(' ')) < max_length and len(p[1].split(' ')) < max_length
 
-def filterConvos(pairs, max_length = 20):
-    return [pair for pair in pairs if filterPair(pair, max_length)]
+def trimConvos(pairs, max_length = 20):
+    return [pair for pair in pairs if trimPair(pair, max_length)]
 
 # Create Tensors
 def genSentenceVector(vocab, sentence):
@@ -514,7 +512,7 @@ if __name__ == "__main__":
     max_length = 18
     convos = np.load('chat_data/clean_conversations.npy')
     vocab = createVocab(convos, 'synsypa_vocab')
-    convo_filtered = filterConvos(convos, max_length)
+    convos_trimmed = trimConvos(convos, max_length)
 
     # Configure models
     model_name = 'synsypa_model'
@@ -585,7 +583,7 @@ if __name__ == "__main__":
 
     # Run training iterations
     print("Starting Training!")
-    trainIters(model_name, vocab, convo_filtered, 
+    trainIters(model_name, vocab, convos_trimmed, 
                encoder, decoder, encoder_optimizer, decoder_optimizer,
                embedding, encoder_n_layers, decoder_n_layers, teacher_forcing_ratio,
                save_dir, n_iteration, batch_size, hidden_size,
