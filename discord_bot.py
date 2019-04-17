@@ -10,7 +10,8 @@ import re
 
 import torch.nn as nn
 
-import bot_helpers as bh
+import clean_chats as clean
+import train_model as model
 
 # Configure torch
 USE_CUDA = torch.cuda.is_available()

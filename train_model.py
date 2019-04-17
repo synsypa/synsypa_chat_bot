@@ -1,19 +1,18 @@
-import numpy as np 
-import os
-import re
-import itertools
+import numpy as np
 import random
-import torch
+import itertools
+import os
+
+import torch 
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.jit import script, trace
 from torch import optim
-import torch.nn.functional as F
 
-USE_CUDA = torch.cuda.is_available()
-device = torch.device("cuda" if USE_CUDA else "cpu")
-MAX_LENGTH = 20
+from visdom import Visdom
 
-# Create Vocabulary
+## Vocab Creation
+# Vocabulary Globals
 PAD_token = 0
 SOS_token = 1
 END_token = 2
@@ -72,17 +71,10 @@ def createVocab(convo_array, vocab_name):
         vocab.addLine(pair[1])
     return vocab
 
-# Process Conversations
-def cleanString(s):
-    s = re.sub("([\<]).*?([\>])", "", s).strip()
-    s = re.sub(r"([.!?])", r" \1", s)
-    s = re.sub(r"[^a-zA-Z.!?]+", r" ", s)
-    s = s.lower()
-    return s
-
-def filterRareWords(vocab, convo_array, MIN_COUNT):
-    # Trim words used under the MIN_COUNT from the voc
-    vocab.trim(MIN_COUNT)
+## Improve training set
+def filterRareWords(vocab, convo_array, min_count = 2):
+    # Trim words used under the min_count from the voc
+    vocab.trim(min_count)
     # Filter out pairs with trimmed words
     keep_pairs = []
     for pair in convo_array:
@@ -108,13 +100,12 @@ def filterRareWords(vocab, convo_array, MIN_COUNT):
     print(f"Trimmed from {len(convo_array)} pairs to {len(keep_pairs)}, {len(keep_pairs) / len(convo_array):.4f} of total")
     return keep_pairs
 
-def filterPair(p, MAX_LENGTH):
+def filterPair(p, max_length = 20):
     # Input sequences need to preserve the last word for EOS token
-    return len(p[0].split(' ')) < MAX_LENGTH and len(p[1].split(' ')) < MAX_LENGTH
+    return len(p[0].split(' ')) < max_length and len(p[1].split(' ')) < max_length
 
-def filterConvos(pairs, MAX_LENGTH):
-    return [pair for pair in pairs if filterPair(pair, MAX_LENGTH)]
-
+def filterConvos(pairs, max_length = 20):
+    return [pair for pair in pairs if filterPair(pair, max_length)]
 
 # Create Tensors
 def genSentenceVector(vocab, sentence):
@@ -321,7 +312,7 @@ def maskNLLLoss(inp, target, mask):
 # Train
 def train(input_variable, lengths, target_variable, mask, max_target_len,
           encoder, decoder, embedding, encoder_optimizer, decoder_optimizer, 
-          teacher_forcing_ratio, batch_size, clip, max_length=MAX_LENGTH):
+          teacher_forcing_ratio, batch_size, clip, max_length=20):
 
     # Zero gradients
     encoder_optimizer.zero_grad()
@@ -477,7 +468,7 @@ class GreedySearchDecoder(nn.Module):
         # Return collections of word tokens and scores
         return all_tokens, all_scores
 
-def evaluate(encoder, decoder, searcher, vocab, sentence, max_length=MAX_LENGTH):
+def evaluate(encoder, decoder, searcher, vocab, sentence, max_length=20):
     ### Format input sentence as a batch
     # words -> indexes
     indexes_batch = [genSentenceVector(vocab, sentence)]
@@ -493,3 +484,109 @@ def evaluate(encoder, decoder, searcher, vocab, sentence, max_length=MAX_LENGTH)
     # indexes -> words
     decoded_words = [vocab.index2word[token.item()] for token in tokens]
     return decoded_words
+
+class VisdomLinePlotter(object):
+    """Plots to Visdom"""
+    def __init__(self, env_name='main'):
+        self.viz = Visdom()
+        self.env = env_name
+        self.plots = {}
+    def plot(self, var_name, split_name, title_name, x, y):
+        if var_name not in self.plots:
+            self.plots[var_name] = self.viz.line(X=np.array([x,x]), Y=np.array([y,y]),
+                                                 env=self.env, 
+                                                 opts=dict(legend=[split_name],
+                                                            title=title_name,
+                                                            xlabel='Epochs',
+                                                            ylabel=var_name)
+                                                )
+        else:
+            self.viz.line(X=np.array([x]), Y=np.array([y]), 
+                          env=self.env, win=self.plots[var_name],
+                          name=split_name, update = 'append')
+            
+if __name__ == "__main__":
+    # CUDA settings
+    USE_CUDA = torch.cuda.is_available()
+    device = torch.device("cuda" if USE_CUDA else "cpu")
+
+    # Actually Train Model
+    max_length = 18
+    convos = np.load('chat_data/clean_conversations.npy')
+    vocab = createVocab(convos, 'synsypa_vocab')
+    convo_filtered = filterConvos(convos, max_length)
+
+    # Configure models
+    model_name = 'synsypa_model'
+    attn_model = 'dot'
+    #attn_model = 'general'
+    #attn_model = 'concat'
+    hidden_size = 500
+    encoder_n_layers = 2
+    decoder_n_layers = 2
+    dropout = 0.1
+    batch_size = 64
+
+    # Set checkpoint to load from; set to None if starting from scratch
+    loadFilename = None
+
+    # Load model if a loadFilename is provided
+    if loadFilename:
+        # If loading on same machine the model was trained on
+        checkpoint = torch.load(loadFilename)
+        # If loading a model trained on GPU to CPU
+        #checkpoint = torch.load(loadFilename, map_location=torch.device('cpu'))
+        encoder_sd = checkpoint['en']
+        decoder_sd = checkpoint['de']
+        encoder_optimizer_sd = checkpoint['en_opt']
+        decoder_optimizer_sd = checkpoint['de_opt']
+        embedding_sd = checkpoint['embedding']
+        vocab.__dict__ = checkpoint['vocab_dict']
+
+
+    print('Building encoder and decoder ...')
+    # Initialize word embeddings
+    embedding = nn.Embedding(vocab.num_words, hidden_size)
+    if loadFilename:
+        embedding.load_state_dict(embedding_sd)
+    # Initialize encoder & decoder models
+    encoder = EncoderRNN(hidden_size, embedding, encoder_n_layers, dropout)
+    decoder = LuongAttnDecoderRNN(attn_model, embedding, hidden_size, vocab.num_words, decoder_n_layers, dropout)
+    if loadFilename:
+        encoder.load_state_dict(encoder_sd)
+        decoder.load_state_dict(decoder_sd)
+    # Use appropriate device
+    encoder = encoder.to(device)
+    decoder = decoder.to(device)
+    print('Models built and ready to go!')
+
+    # Configure training/optimization
+    clip = 50.0
+    teacher_forcing_ratio = 1.0
+    learning_rate = 0.0001
+    decoder_learning_ratio = 5.0
+    n_iteration = 20000
+    print_every = 10
+    save_every = 5000
+
+    save_dir = os.path.join("models", "save")
+
+    # Ensure dropout layers are in train mode
+    encoder.train()
+    decoder.train()
+
+    # Initialize optimizers
+    print('Building optimizers ...')
+    encoder_optimizer = optim.Adam(encoder.parameters(), lr=learning_rate)
+    decoder_optimizer = optim.Adam(decoder.parameters(), lr=learning_rate * decoder_learning_ratio)
+    if loadFilename:
+        encoder_optimizer.load_state_dict(encoder_optimizer_sd)
+        decoder_optimizer.load_state_dict(decoder_optimizer_sd)
+
+    # Run training iterations
+    print("Starting Training!")
+    trainIters(model_name, vocab, convo_filtered, 
+               encoder, decoder, encoder_optimizer, decoder_optimizer,
+               embedding, encoder_n_layers, decoder_n_layers, teacher_forcing_ratio,
+               save_dir, n_iteration, batch_size, hidden_size,
+               print_every, save_every, clip, loadFilename)
