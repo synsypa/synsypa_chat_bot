@@ -5,6 +5,10 @@ Seq2Seq Discord Chatbot trained on single user's discord chat history
 
 03/18 Work on Refactor using PyTorch, based off PyTorch Seq2Seq Tutorial
 
+04/16 Refactor PyTorch code for better structure, adding support for viz (unused)
+
+07/06 Fixed (maybe?) issue with memory usage during training
+
 TO-DO:
 Better Logging and Visualization of Training Progress (to help identify overfit)
 

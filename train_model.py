@@ -2,6 +2,7 @@ import numpy as np
 import random
 import itertools
 import os
+from datetime import date
 
 import torch 
 import torch.nn as nn
@@ -404,7 +405,7 @@ class GreedySearchDecoder(nn.Module):
         # Forward input through encoder model
         encoder_outputs, encoder_hidden = self.encoder(input_seq, input_length)
         # Prepare encoder's final hidden layer to be first hidden input to the decoder
-        decoder_hidden = encoder_hidden[:self.decoder.n_layers]
+        decoder_hidden = encoder_hidden[:decoder.n_layers]
         # Initialize decoder input with SOS_token
         decoder_input = torch.ones(1, 1, device=device, dtype=torch.long) * SOS_token
         # Initialize tensors to append decoded words to
@@ -473,7 +474,7 @@ if __name__ == "__main__":
     convos_trimmed = trimConvos(convos, max_length)
 
     # Configure models
-    model_name = 'synsypa_model'
+    model_name = f'synsypa_model_{date.today()}'
     attn_model = 'dot'
     #attn_model = 'general'
     #attn_model = 'concat'
@@ -522,7 +523,7 @@ if __name__ == "__main__":
     learning_rate = 0.0001
     decoder_learning_ratio = 5.0
     n_iteration = 20000
-    print_every = 10
+    print_every = 1
     save_every = 5000
 
     save_dir = os.path.join("models", "save")
@@ -546,3 +547,4 @@ if __name__ == "__main__":
                embedding, encoder_n_layers, decoder_n_layers, teacher_forcing_ratio,
                save_dir, n_iteration, batch_size, hidden_size,
                print_every, save_every, clip, loadFilename)
+    
