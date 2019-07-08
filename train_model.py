@@ -259,7 +259,7 @@ class LuongAttnDecoderRNN(nn.Module):
         return output, hidden    
     
 # Define Loss
-def maskNLLLoss(inp, target, mask):
+def maskNLLLoss(inp, target, mask, device):
     nTotal = mask.sum()
     crossEntropy = -torch.log(torch.gather(inp, 1, target.view(-1, 1)).squeeze(1))
     loss = crossEntropy.masked_select(mask).mean()
@@ -269,7 +269,7 @@ def maskNLLLoss(inp, target, mask):
 # Train
 def train(input_variable, lengths, target_variable, mask, max_target_len,
           encoder, decoder, embedding, encoder_optimizer, decoder_optimizer, 
-          teacher_forcing_ratio, batch_size, clip, max_length=20):
+          teacher_forcing_ratio, batch_size, clip, device, max_length=20):
 
     # Zero gradients
     encoder_optimizer.zero_grad()
@@ -308,7 +308,7 @@ def train(input_variable, lengths, target_variable, mask, max_target_len,
             # Teacher forcing: next input is current target
             decoder_input = target_variable[t].view(1, -1)
             # Calculate and accumulate loss
-            mask_loss, nTotal = maskNLLLoss(decoder_output, target_variable[t], mask[t])
+            mask_loss, nTotal = maskNLLLoss(decoder_output, target_variable[t], mask[t], device)
             loss += mask_loss
             print_losses.append(mask_loss.item() * nTotal)
             n_totals += nTotal
@@ -322,7 +322,7 @@ def train(input_variable, lengths, target_variable, mask, max_target_len,
             decoder_input = torch.LongTensor([[topi[i][0] for i in range(batch_size)]])
             decoder_input = decoder_input.to(device)
             # Calculate and accumulate loss
-            mask_loss, nTotal = maskNLLLoss(decoder_output, target_variable[t], mask[t])
+            mask_loss, nTotal = maskNLLLoss(decoder_output, target_variable[t], mask[t], device)
             loss += mask_loss
             print_losses.append(mask_loss.item() * nTotal)
             n_totals += nTotal
@@ -345,7 +345,7 @@ def trainIters(model_name, vocab, convos,
                encoder, decoder, encoder_optimizer, decoder_optimizer,
                embedding, encoder_n_layers, decoder_n_layers, teacher_forcing_ratio,
                save_dir, n_iteration, batch_size, hidden_size,
-               print_every, save_every, clip, loadFilename):
+               print_every, save_every, clip, loadFilename, device):
 
     # Load batches for each iteration
     training_batches = [getTrainBatch(vocab, [random.choice(convos) for _ in range(batch_size)])
@@ -369,7 +369,7 @@ def trainIters(model_name, vocab, convos,
         # Run a training iteration with batch
         loss = train(input_variable, lengths, target_variable, mask, max_target_len, encoder,
                      decoder, embedding, encoder_optimizer, decoder_optimizer, 
-                     teacher_forcing_ratio, batch_size, clip)
+                     teacher_forcing_ratio, batch_size, clip, device)
         print_loss += loss
 
         # Print progress
@@ -396,21 +396,22 @@ def trainIters(model_name, vocab, convos,
 
 # Evaluate Model 
 class GreedySearchDecoder(nn.Module):
-    def __init__(self, encoder, decoder):
+    def __init__(self, encoder, decoder, device):
         super(GreedySearchDecoder, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
+        self.device = device
 
     def forward(self, input_seq, input_length, max_length):
         # Forward input through encoder model
         encoder_outputs, encoder_hidden = self.encoder(input_seq, input_length)
         # Prepare encoder's final hidden layer to be first hidden input to the decoder
-        decoder_hidden = encoder_hidden[:decoder.n_layers]
+        decoder_hidden = encoder_hidden[:self.decoder.n_layers]
         # Initialize decoder input with SOS_token
-        decoder_input = torch.ones(1, 1, device=device, dtype=torch.long) * SOS_token
+        decoder_input = torch.ones(1, 1, device=self.device, dtype=torch.long) * SOS_token
         # Initialize tensors to append decoded words to
-        all_tokens = torch.zeros([0], device=device, dtype=torch.long)
-        all_scores = torch.zeros([0], device=device)
+        all_tokens = torch.zeros([0], device=self.device, dtype=torch.long)
+        all_scores = torch.zeros([0], device=self.device)
         # Iteratively decode one word token at a time
         for _ in range(max_length):
             # Forward pass through decoder
@@ -425,7 +426,7 @@ class GreedySearchDecoder(nn.Module):
         # Return collections of word tokens and scores
         return all_tokens, all_scores
 
-def evaluate(encoder, decoder, searcher, vocab, sentence, max_length=20):
+def evaluate(encoder, decoder, searcher, vocab, sentence, device, max_length=20):
     ### Format input sentence as a batch
     # words -> indexes
     indexes_batch = [genSentenceVector(vocab, sentence)]
@@ -523,7 +524,7 @@ if __name__ == "__main__":
     learning_rate = 0.0001
     decoder_learning_ratio = 5.0
     n_iteration = 20000
-    print_every = 1
+    print_every = 10
     save_every = 5000
 
     save_dir = os.path.join("models", "save")
@@ -546,5 +547,5 @@ if __name__ == "__main__":
                encoder, decoder, encoder_optimizer, decoder_optimizer,
                embedding, encoder_n_layers, decoder_n_layers, teacher_forcing_ratio,
                save_dir, n_iteration, batch_size, hidden_size,
-               print_every, save_every, clip, loadFilename)
+               print_every, save_every, clip, loadFilename, device)
     
