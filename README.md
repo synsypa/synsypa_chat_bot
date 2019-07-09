@@ -9,7 +9,8 @@ Seq2Seq Discord Chatbot trained on single user's discord chat history
 
 07/06 Fixed (maybe?) issue with memory usage during training
 
-TO-DO:
+__TO-DO:__
+
 Build testing script/notebook for trained model
 
 Better Logging and Visualization of Training Progress (to help identify overfit)
