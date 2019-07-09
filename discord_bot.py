@@ -43,13 +43,6 @@ def log_msg(data):
     tmp = [str(d).replace(u'\u241e', ' ') for d in data]
     return u'\u241e'.join(tmp)
 
-# Configure Bot
-description = '''
-            A Bot to reply as synsypa using PyTorch Seq2Seq ChatBot 
-            '''
-
-bot = commands.Bot(command_prefix='&', description=description)
-
 # Build Vocabulary
 convos = np.load('chat_data/clean_conversations.npy')
 vocab = model.createVocab(convos, 'synsypa_vocab')
@@ -133,12 +126,20 @@ def respond(input_str, encoder, decoder, searcher, vocab):
     return output_str
     
 # Discord interactions
+# Configure Bot
+description = '''
+            A Bot to reply as synsypa using PyTorch Seq2Seq ChatBot 
+            '''
+
+bot = commands.Bot(command_prefix=commands.when_mentioned_or('&'), description=description)
+
+
 @bot.event
 async def on_ready():
     log.info(log_msg(['login', bot.user.name, bot.user.id]))    
 
 @bot.command()  
-async def listen(ctx, *text : str):
+async def hey(ctx, *text : str):
     log.info(log_msg(['received_request', 
                       'listen',
                       ctx.message.author.name, 
