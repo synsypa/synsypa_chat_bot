@@ -10,7 +10,8 @@ import re
 
 import torch.nn as nn
 
-import bot_helpers as bh
+import clean_chats as clean
+import train_model as model
 
 # Configure torch
 USE_CUDA = torch.cuda.is_available()
@@ -42,16 +43,9 @@ def log_msg(data):
     tmp = [str(d).replace(u'\u241e', ' ') for d in data]
     return u'\u241e'.join(tmp)
 
-# Configure Bot
-description = '''
-            A Bot to reply as synsypa using PyTorch Seq2Seq ChatBot 
-            '''
-
-bot = commands.Bot(command_prefix='&', description=description)
-
 # Build Vocabulary
 convos = np.load('chat_data/clean_conversations.npy')
-vocab = bh.createVocab(convos, 'synsypa_vocab')
+vocab = model.createVocab(convos, 'synsypa_vocab')
 
 # Load Model
 # Configure models
@@ -63,7 +57,7 @@ dropout = 0.1
 batch_size = 32
 
 # Set checkpoint to load from; set to None if starting from scratch
-loadModel = 'models/save/synsypa_model_3/2-2_500/20000_checkpoint.tar'
+loadModel = 'models/save/synsypa_model_2019-07-06/2-2_500/20000_checkpoint.tar'
 
 # If loading on same machine the model was trained on
 checkpoint = torch.load(loadModel)
@@ -82,8 +76,8 @@ log.info(log_msg(['Building encoder and decoder from', loadModel]))
 embedding = nn.Embedding(vocab.num_words, hidden_size)
 embedding.load_state_dict(embedding_sd)
 # Initialize encoder & decoder models
-encoder = bh.EncoderRNN(hidden_size, embedding, encoder_n_layers, dropout)
-decoder = bh.LuongAttnDecoderRNN(attn_model, embedding, hidden_size, vocab.num_words, decoder_n_layers, dropout)
+encoder = model.EncoderRNN(hidden_size, embedding, encoder_n_layers, dropout)
+decoder = model.LuongAttnDecoderRNN(attn_model, embedding, hidden_size, vocab.num_words, decoder_n_layers, dropout)
 encoder.load_state_dict(encoder_sd)
 decoder.load_state_dict(decoder_sd)
 # Use appropriate device
@@ -97,12 +91,12 @@ encoder.eval()
 decoder.eval()
 
 # Initialize search module
-searcher = bh.GreedySearchDecoder(encoder, decoder)
+searcher = model.GreedySearchDecoder(encoder, decoder, device)
 
 # Response Generation
 def respond(input_str, encoder, decoder, searcher, vocab):
     # Normalize input
-    input_str = bh.cleanString(input_str)
+    input_str = clean.cleanString(input_str)
     
     # Remove words not in dict
     input_list = []
@@ -116,7 +110,7 @@ def respond(input_str, encoder, decoder, searcher, vocab):
     clean_str = ' '.join(input_list)
     
     # evaluate sentence
-    output_words = bh.evaluate(encoder, decoder, searcher, vocab, clean_str)
+    output_words = model.evaluate(encoder, decoder, searcher, vocab, clean_str, device)
     output_ended = []
     for word in output_words:
         if word == '<END>':
@@ -132,12 +126,20 @@ def respond(input_str, encoder, decoder, searcher, vocab):
     return output_str
     
 # Discord interactions
+# Configure Bot
+description = '''
+            A Bot to reply as synsypa using PyTorch Seq2Seq ChatBot 
+            '''
+
+bot = commands.Bot(command_prefix=commands.when_mentioned_or('&'), description=description)
+
+
 @bot.event
 async def on_ready():
     log.info(log_msg(['login', bot.user.name, bot.user.id]))    
 
 @bot.command()  
-async def listen(ctx, *text : str):
+async def hey(ctx, *text : str):
     log.info(log_msg(['received_request', 
                       'listen',
                       ctx.message.author.name, 
