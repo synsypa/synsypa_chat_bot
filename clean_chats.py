@@ -2,6 +2,8 @@ import json
 import itertools
 import re
 import numpy as np
+from datetime import date
+
 
 def createUserReference(discord_json):
     user_ids = {id:discord_json['meta']['users'][id]['name'] for id in dis_json['meta']['users']}
@@ -10,7 +12,7 @@ def createUserReference(discord_json):
     return(user_ref)
 
 def cleanString(s):
-    s = re.sub("([\<]).*?([\>])", "", s).strip()
+    s = re.sub(r"([\<]).*?([\>])", "", s).strip()
     s = re.sub(r"([.!?])", r" \1", s)
     s = re.sub(r"[^a-zA-Z.!?]+", r" ", s)
     s = s.lower()
@@ -125,4 +127,4 @@ if __name__ == "__main__":
     if need_resp and resp_ready and k_time < o_time + (5 * 60 * 1000):
         responses.append((' '.join(o_msg), ' '.join(k_msg)))
 
-    np.save('chat_data/clean_conversations.npy', responses)
+    np.save(f'chat_data/clean_conversations_{date.today()}.npy', responses)
