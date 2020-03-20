@@ -105,3 +105,10 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# Custom
+.vscode/
+chat_data/
+*/tensorboard/
+*/tf_data/
+sample_data/
