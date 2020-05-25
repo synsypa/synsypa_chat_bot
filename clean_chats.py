@@ -1,8 +1,10 @@
 import json
 import itertools
 import re
-import numpy as np
+import unicodedata
 from datetime import date
+
+import pickle
 
 
 def create_user_reference(discord_json):
@@ -10,6 +12,12 @@ def create_user_reference(discord_json):
     user_index = discord_json['meta']['userindex']
     user_ref = {user_index.index(id):user_ids[id] for id in user_index}
     return(user_ref)
+
+def unicode_to_ascii(s):
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', s)
+        if unicodedata.category(c) != 'Mn'
+    )
 
 def clean_string(s):
     s = re.sub(r"([\<]).*?([\>])", "", s).strip()
@@ -70,6 +78,9 @@ if __name__ == "__main__":
 
         # Clean Message String
         single_msg['m'] = clean_string(single_msg['m'])
+
+        # # Convert to ASCII
+        #single_msg['m'] = unicode_to_ascii(single_msg['m'])
 
         # Parse Others' Messages
         if user_ref[single_msg['u']] != "synsypa":
@@ -137,4 +148,4 @@ if __name__ == "__main__":
     if need_resp and resp_ready and k_time < o_time + (5 * 60 * 1000):
         responses.append((' '.join(o_msg), ' '.join(k_msg)))
 
-    np.save(f'chat_data/clean_conversations_{date.today()}.npy', responses)
+    pickle.dump(responses, open(f'chat_data/clean_conversations_{date.today()}.pkl', 'wb'))
