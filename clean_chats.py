@@ -38,9 +38,19 @@ if __name__ == "__main__":
     o_speak = None
     need_resp = False
     resp_ready = False
+    bots = [6,7,8,11,12,13,14,15,17,18,19,20]
 
     for message in chats:
         single_msg = message
+        
+        # Skip messages with embeds or links
+        if ('e' in single_msg or 'a' in single_msg):
+            continue
+
+        # Skip messages with no message
+        if 'm' not in single_msg:
+            continue
+
         # Skip messages with with no Text
         if not single_msg['m']:
             continue
@@ -50,13 +60,12 @@ if __name__ == "__main__":
             single_msg['m'][0] in ['(','[','{']):
             continue
             
-        # Skip messages with embeds or links
-        if ('e' in single_msg or 'a' in single_msg):
-            continue
-            
-        # Skip messages from Quote Bot 
-        # TODO Skip all bot messages
-        if user_ref[single_msg['u']] == 'quote-bot':
+        # Skip messages from quotebot 
+        # if user_ref[single_msg['u']] == 'quote-bot':
+        #     continue
+
+        # Skip messages from bots
+        if single_msg['u'] in bots:
             continue
 
         # Clean Message String
