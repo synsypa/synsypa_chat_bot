@@ -88,7 +88,7 @@ if __name__ == "__main__":
             # This should only trigger if the last speaker was response
             if (need_resp and resp_ready 
                 and k_time < o_time + (2 * 60 * 1000)):
-                responses.append((' '.join(o_msg), ' '.join(k_msg)))
+                responses.append((' '.join(o_msg).strip(), ' '.join(k_msg).strip()))
                 k_msg, o_msg = [], []
                 k_time, o_time = None, None
                 o_speak = None
@@ -131,7 +131,7 @@ if __name__ == "__main__":
             # Message and response ready, but incoming message is not w/i 2 mins
             elif (need_resp and resp_ready 
                 and k_time < o_time + (2 * 60 * 1000)):
-                responses.append((' '.join(o_msg), ' '.join(k_msg)))
+                responses.append((' '.join(o_msg).strip(), ' '.join(k_msg).strip()))
                 k_msg, o_msg = [], []
                 k_time, o_time = None, None
                 o_speak = None
@@ -146,6 +146,6 @@ if __name__ == "__main__":
 
     # Write the leftover message and response if both are ready
     if need_resp and resp_ready and k_time < o_time + (5 * 60 * 1000):
-        responses.append((' '.join(o_msg), ' '.join(k_msg)))
+        responses.append((' '.join(o_msg).strip(), ' '.join(k_msg).strip()))
 
     pickle.dump(responses, open(f'chat_data/clean_conversations_{date.today()}.pkl', 'wb'))
