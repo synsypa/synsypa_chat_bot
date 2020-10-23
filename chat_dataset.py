@@ -60,12 +60,13 @@ class ConvoDataset(Dataset):
         return torch.tensor(token_idx)
 
 def pad_collate(batch):
-    (xx, yy) = zip(*batch)
+    (xx, yy, zz) = zip(*batch)
 
     xx_pad = pad_sequence(xx, batch_first=True, padding_value=0)
     yy_pad = pad_sequence(yy, batch_first=True, padding_value=0)
+    zz_pad = pad_sequence(zz, batch_first=True, padding_value=0)
 
-    return xx_pad, yy_pad
+    return xx_pad, yy_pad, zz_pad
 
 def make_masks(batch):
     input_mask = (batch[0] != 0).type(torch.uint8).unsqueeze(1).unsqueeze(1) # (batch, 1, 1, seq)
@@ -86,7 +87,7 @@ def tensor_to_str(tensor, vocab):
     for i in tensor:
         w = vocab.itos[i]
         str_list.append(w)
-        if w == '<eos>':
+        if w == '<pad>':
             break
     return ' '.join(str_list)
         
