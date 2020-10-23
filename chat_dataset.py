@@ -26,13 +26,10 @@ def create_vocab(convos):
 class ConvoDataset(Dataset):
     """ Dataset class of conversations """
 
-    def __init__(self, convos, vocab=None):
+    def __init__(self, convos, vocab):
 
         self.convos = convos
-        if vocab is None:
-            self.vocab = create_vocab(convos)
-        else:
-            self.vocab = vocab
+        self.vocab = vocab
 
     def __len__(self):
 
@@ -62,14 +59,25 @@ class ConvoDataset(Dataset):
 
 def pad_collate(batch):
     (xx, yy) = zip(*batch)
-    x_lens = [len(x) for x in xx]
-    y_lens = [len(y) for y in yy]
 
     xx_pad = pad_sequence(xx, batch_first=True, padding_value=0)
     yy_pad = pad_sequence(yy, batch_first=True, padding_value=0)
 
-    return xx_pad, yy_pad, x_lens, y_lens
+    return xx_pad, yy_pad
 
+def make_masks(batch):
+    input_mask = (batch[0] != 0).type(torch.uint8).unsqueeze(1).unsqueeze(1) # (batch, 1, 1, seq)
+
+    target_mask = (batch[1] != 0).type(torch.uint8) # (batch, seq)
+    
+    target_sz = batch[1].size(1)
+    lookahead_mask = target_mask.unsqueeze(1)
+    nopeek_mask = (torch.triu(torch.ones(target_sz, target_sz)) == 1).transpose(0,1)
+    lookahead_mask = lookahead_mask & nopeek_mask # (batch, seq, seq)
+    lookahead_mask = lookahead_mask.unsqueeze(1) # (batch, 1, seq, seq)
+
+    #nopeak_mask = target_mask & nopeak_mask
+    return input_mask, target_mask, lookahead_mask
         
 if __name__ == "__main__":
     convos = pickle.load(open('chat_data/clean_conversations_2020-10-20.pkl', 'rb'))

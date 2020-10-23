@@ -12,6 +12,7 @@ class PositionalEncoding(nn.Module):
         super(PositionalEncoding, self).__init__()
         
         self.dropout = nn.Dropout(dropout)
+        self.model_dim = model_dim
 
         pos_encode = torch.zeros(max_len, model_dim)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
@@ -66,7 +67,7 @@ class MultiheadAttention(nn.Module):
         v = v.transpose(1,2)
 
         # calculate attention score
-        scores = self._attention(q, k, v)
+        scores = self._attention(q, k, v, mask)
 
         # concatenate heads
         concat = (
@@ -80,12 +81,10 @@ class MultiheadAttention(nn.Module):
 
         return output
 
-    def _attention(self, q, k, v):
+    def _attention(self, q, k, v, mask):
 
         scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.d_k)
-
-        if self.mask is not None:
-            mask = mask.unsqueeze(1)
+        if mask is not None:
             scores = scores.masked_fill(mask == 0, -1e9)
         
         scores = F.softmax(scores, dim=-1)
@@ -113,6 +112,22 @@ class FeedForward(nn.Module):
         
         return x
 
+class BatchNorm(nn.Module):
+    def __init__(self, model_dim):
+
+        super(BatchNorm, self).__init__()
+
+        self.bn = nn.BatchNorm1d(model_dim)
+
+    def forward(self, x):
+        
+        x = x.permute(0,2,1)
+        x = self.bn(x)
+        x = x.permute(0,2,1)
+
+        return x
+
+
 class EncoderLayer(nn.Module):
     '''
     1 Multihead attention layer
@@ -122,16 +137,16 @@ class EncoderLayer(nn.Module):
 
         super(EncoderLayer, self).__init__()
 
-        self.bn1 = nn.BatchNorm1d(model_dim)
-        self.attn = MultiheadAttention(n_heads, model_dim)
+        self.bn1 = BatchNorm(model_dim)
+        self.attn = MultiheadAttention(n_heads, model_dim, dropout)
         self.do1 = nn.Dropout(dropout)
 
-        self.bn2 = nn.BatchNorm1d(model_dim)
-        self.ff = FeedForward(model_dim)
+        self.bn2 = BatchNorm(model_dim)
+        self.ff = FeedForward(model_dim, dropout=dropout)
         self.do2 = nn.Dropout(dropout)
 
     def forward(self, x, mask):
-
+        
         x_norm = self.bn1(x)
         x = x + self.do1(self.attn(x_norm, x_norm, x_norm, mask))
         x_norm = self.bn2(x)
@@ -148,24 +163,24 @@ class DecoderLayer(nn.Module):
 
         super(DecoderLayer, self).__init__()
 
-        self.bn1 = nn.BatchNorm1d(model_dim)
-        self.attn1 = MultiheadAttention(n_heads, model_dim)
+        self.bn1 = BatchNorm(model_dim)
+        self.attn1 = MultiheadAttention(n_heads, model_dim, dropout)
         self.do1 = nn.Dropout(dropout)
 
-        self.bn2 = nn.BatchNorm1d(model_dim)
-        self.attn2 = MultiheadAttention(n_heads, model_dim)
+        self.bn2 = BatchNorm(model_dim)
+        self.attn2 = MultiheadAttention(n_heads, model_dim, dropout)
         self.do2 = nn.Dropout(dropout)
 
-        self.bn3 = nn.BatchNorm1d(model_dim)
-        self.ff = FeedForward(model_dim)
+        self.bn3 = BatchNorm(model_dim)
+        self.ff = FeedForward(model_dim, dropout=dropout)
         self.do3 = nn.Dropout(dropout)
 
     def forward(self, x, e_outputs, input_mask, lookahead_mask):
 
         x_norm = self.bn1(x)
-        x = x + self.do1(self.attn(x_norm, x_norm, x_norm, input_mask))
+        x = x + self.do1(self.attn1(x_norm, x_norm, x_norm, lookahead_mask))
         x_norm = self.bn2(x)
-        x = x + self.do2(self.attn(x_norm, e_outputs, e_outputs, lookahead_mask))
+        x = x + self.do2(self.attn2(x_norm, e_outputs, e_outputs, input_mask))
         x_norm = self.bn3(x)
         x = x + self.do3(self.ff(x_norm))
 
@@ -176,15 +191,15 @@ def stack_layers(module, N):
 
 class Encoder(nn.Module):
     
-    def __init__(self, vocab_size, model_dim, N, n_heads):
+    def __init__(self, vocab_size, model_dim, N, n_heads, dropout):
         
         super(Encoder, self).__init__()
 
         self.N = N
         self.embed = nn.Embedding(vocab_size, model_dim)
         self.pos = PositionalEncoding(model_dim)
-        self.layers = stack_layers(EncoderLayer(model_dim, n_heads), N)
-        self.bn = nn.BatchNorm1d(model_dim)
+        self.layers = stack_layers(EncoderLayer(model_dim, n_heads, dropout), N)
+        self.bn = BatchNorm(model_dim)
 
     def forward(self, source, mask):
         
@@ -198,19 +213,19 @@ class Encoder(nn.Module):
 
 class Decoder(nn.Module):
 
-    def __init__(self, vocab_size, model_dim, N, n_heads):
+    def __init__(self, vocab_size, model_dim, N, n_heads, dropout):
 
         super(Decoder, self).__init__()
 
         self.N = N
         self.embed = nn.Embedding(vocab_size, model_dim)
         self.pos = PositionalEncoding(model_dim)
-        self.layers = stack_layers(DecoderLayer(model_dim, n_heads), N)
-        self.bn = nn.BatchNorm1d(model_dim)
+        self.layers = stack_layers(DecoderLayer(model_dim, n_heads, dropout), N)
+        self.bn = BatchNorm(model_dim)
 
     def forward(self, target, e_outputs, input_mask, lookahead_mask):
         
-        x = self.embed(source)
+        x = self.embed(target)
         x = self.pos(x)
         for i in range(self.N):
             x = self.layers[i](x, e_outputs, input_mask, lookahead_mask)
@@ -220,12 +235,12 @@ class Decoder(nn.Module):
 
 class Transformer(nn.Module):
 
-    def __init__(self, vocab, model_dim, N, n_heads):
+    def __init__(self, vocab, model_dim, N, n_heads, dropout):
 
         super(Transformer, self).__init__()
         vocab_size = len(vocab)
-        self.encoder = Encoder(vocab_size, model_dim, N, n_heads)
-        self.decoder = Decoder(vocab_size, model_dim, N, n_heads)
+        self.encoder = Encoder(vocab_size, model_dim, N, n_heads, dropout)
+        self.decoder = Decoder(vocab_size, model_dim, N, n_heads, dropout)
         self.fc1 = nn.Linear(model_dim, vocab_size)
 
     def forward(self, call, response, input_mask, lookahead_mask):
