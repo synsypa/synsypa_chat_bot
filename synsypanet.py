@@ -30,7 +30,7 @@ class PositionalEncoding(nn.Module):
         # expand input
         x = x * math.sqrt(self.model_dim)
         # add positional constant
-        x = x + Variable(self.pe[:x.size(0), :], requires_grad=False).cuda()
+        x = x + Variable(self.pe[:x.size(0), :], requires_grad=False)
         return self.dropout(x)
         
 

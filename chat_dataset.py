@@ -12,13 +12,13 @@ SOS_TOKEN = "<sos>"
 EOS_TOKEN = "<eos>"
 UNK_TOKEN = "<unk>"
 
-def create_vocab(convos):
+def create_vocab(convos, max_freq=5):
     # flatten convos
     flat = [text for pair in convos for text in pair]
 
     counter = Counter(' '.join(flat).split())
 
-    voc = vocab.Vocab(counter, min_freq=3,
+    voc = vocab.Vocab(counter, min_freq=max_freq,
                     specials=[PAD_TOKEN, SOS_TOKEN, EOS_TOKEN, UNK_TOKEN])
 
     return voc
@@ -65,12 +65,12 @@ def pad_collate(batch):
 
     return xx_pad, yy_pad
 
-def make_masks(batch):
-    input_mask = (batch[0] != 0).type(torch.uint8).unsqueeze(1).unsqueeze(1) # (batch, 1, 1, seq)
+def make_masks(input_tensor, target_tensor):
+    input_mask = (input_tensor != 0).type(torch.uint8).unsqueeze(1).unsqueeze(1) # (batch, 1, 1, seq)
 
-    target_mask = (batch[1] != 0).type(torch.uint8) # (batch, seq)
+    target_mask = (target_tensor != 0).type(torch.uint8) # (batch, seq)
     
-    target_sz = batch[1].size(1)
+    target_sz = target_tensor.size(1)
     lookahead_mask = target_mask.unsqueeze(1)
     nopeek_mask = (torch.triu(torch.ones(target_sz, target_sz)) == 1).transpose(0,1)
     lookahead_mask = lookahead_mask & nopeek_mask # (batch, seq, seq)

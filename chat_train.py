@@ -34,7 +34,7 @@ if __name__ == '__main__':
 
     # Load conversations 
     convos = pickle.load(open('chat_data/clean_conversations_2020-10-20.pkl', 'rb'))
-    voc = loader.create_vocab(convos)
+    voc = loader.create_vocab(convos, 3)
 
     # Split dataset
     #random.shuffle(convos)
@@ -119,7 +119,7 @@ if __name__ == '__main__':
             target_output = target_tensor[:, 1:]
 
             # Construct Masks
-            input_mask, _, lookahead_mask = make_masks(input_tensor, target_input)
+            input_mask, _, lookahead_mask = loader.make_masks(input_tensor, target_input)
 
             # Send Everything to device
             input_tensor = input_tensor.to(device)
@@ -172,7 +172,7 @@ if __name__ == '__main__':
                 test_target_output = test_target_tensor[:, 1:]
 
                 # Construct Masks
-                test_input_mask, _, test_lookahead_mask = make_masks(test_input_tensor, test_target_input)
+                test_input_mask, _, test_lookahead_mask = loader.make_masks(test_input_tensor, test_target_input)
 
                 # Everything to device
                 test_input_tensor = test_input_tensor.to(device)
@@ -192,7 +192,7 @@ if __name__ == '__main__':
 
                 # Output Sample Strings
                 if i % 100 == 99:
-                    test_input_str = tensor_to_str(test_input_tensor[0], voc)
+                    test_input_str = loader.tensor_to_str(test_input_tensor[0], voc)
                     logger.info(f"Sample Input: {test_input_str}")
 
                     test_target_str = tensor_to_str(test_target_tensor[0], voc)
