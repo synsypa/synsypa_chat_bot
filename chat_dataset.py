@@ -41,10 +41,8 @@ class ConvoDataset(Dataset):
 
         call_tensor = self._to_index(call)
         response_tensor = self._to_index(response)
-        response_tensor_in = response_tensor[:-1]
-        response_tensor_out = response_tensor[1:].view(-1)
 
-        return call_tensor, response_tensor_in, response_tensor_out
+        return call_tensor, response_tensor
 
     def _to_index(self, string):
         
@@ -60,13 +58,12 @@ class ConvoDataset(Dataset):
         return torch.tensor(token_idx)
 
 def pad_collate(batch):
-    (xx, yy, zz) = zip(*batch)
+    (xx, yy) = zip(*batch)
 
     xx_pad = pad_sequence(xx, batch_first=True, padding_value=0)
     yy_pad = pad_sequence(yy, batch_first=True, padding_value=0)
-    zz_pad = pad_sequence(zz, batch_first=True, padding_value=0)
 
-    return xx_pad, yy_pad, zz_pad
+    return xx_pad, yy_pad
 
 def make_masks(batch):
     input_mask = (batch[0] != 0).type(torch.uint8).unsqueeze(1).unsqueeze(1) # (batch, 1, 1, seq)

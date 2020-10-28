@@ -34,16 +34,19 @@ if __name__ == '__main__':
 
     # Load conversations 
     convos = pickle.load(open('chat_data/clean_conversations_2020-10-20.pkl', 'rb'))
-    vocab = loader.create_vocab(convos)
+    voc = loader.create_vocab(convos)
 
     # Split dataset
-    random.shuffle(convos)
-    test_convos = convos[:5000]
-    train_convos = convos[5000:]
-    batch_size = 20
+    #random.shuffle(convos)
+    #test_convos = convos[:5000]
+    #train_convos = convos[5000:]
 
-    train_dataset = loader.ConvoDataset(train_convos, vocab)
-    test_dataset = loader.ConvoDataset(test_convos, vocab)
+    test_convos = convos[:5]
+    train_convos = convos[:5]
+    batch_size = 1
+
+    train_dataset = loader.ConvoDataset(train_convos, voc)
+    test_dataset = loader.ConvoDataset(test_convos, voc)
 
     train_loader = DataLoader(train_dataset,
                             collate_fn = loader.pad_collate,
@@ -72,7 +75,7 @@ if __name__ == '__main__':
     model_name = f'synsypa_transformer_{date.today()}'
 
     # Intialize models
-    transformer = Transformer(vocab, model_dim, n_layers, heads, dropout)
+    transformer = Transformer(voc, model_dim, n_layers, heads, dropout)
     transformer = transformer.to(device)
 
     # Apparently some sort of magic param initialization
@@ -97,32 +100,41 @@ if __name__ == '__main__':
 
     # Training Loop
     start_time = time.time()
-    print_loss = 0
+    print_loss = 0.0
     transformer.train()
 
     for epoch in range(epochs):
-        
+            
         for i, data in enumerate(train_loader):
             
             # Zero Grad Optimizers
             optimizer.zero_grad()
 
             # Send Inputs to Device
-            input_tensor = data[0].to(device)
-            target_tensor = data[1].to(device)
+            input_tensor = data[0]
+            target_tensor = data[1]
+
+            # Offset Targets
+            target_input = target_tensor[:, :-1]
+            target_output = target_tensor[:, 1:]
 
             # Construct Masks
-            input_mask, _, lookahead_mask = loader.make_masks(data)
+            input_mask, _, lookahead_mask = make_masks(input_tensor, target_input)
+
+            # Send Everything to device
+            input_tensor = input_tensor.to(device)
+            target_tensor = target_tensor.to(device)
+            target_input = target_input.to(device)
+            target_output = target_output.to(device)
             input_mask = input_mask.to(device)
             lookahead_mask = lookahead_mask.to(device)
 
             # Forward Through Encoder
-            output = transformer(input_tensor, target_tensor,
-                                 input_mask, lookahead_mask)
+            output = transformer(input_tensor, target_input,
+                                input_mask, lookahead_mask)
 
             # Calculate Loss
-            target_tensor_out = data[2].to(device)
-            loss = criterion(output.permute(0,2,1), target_tensor_out)
+            loss = criterion(output.permute(0,2,1), target_output)
 
             # Step
             loss.backward()
@@ -152,45 +164,52 @@ if __name__ == '__main__':
                 effective_batches += 1
 
                 # Send Inputs to Device
-                test_input_tensor = data[0].to(device)
-                test_target_tensor = data[1].to(device)
+                test_input_tensor = data[0]
+                test_target_tensor = data[1]
+
+                # Offset Targets
+                test_target_input = test_target_tensor[:, :-1]
+                test_target_output = test_target_tensor[:, 1:]
 
                 # Construct Masks
-                test_input_mask, _, test_lookahead_mask = loader.make_masks(data)
+                test_input_mask, _, test_lookahead_mask = make_masks(test_input_tensor, test_target_input)
+
+                # Everything to device
+                test_input_tensor = test_input_tensor.to(device)
+                test_target_tensor = test_target_tensor.to(device)
+                test_target_input = test_target_input.to(device)
+                test_target_output = test_target_output.to(device)
                 test_input_mask = test_input_mask.to(device)
                 test_lookahead_mask = test_lookahead_mask.to(device)
 
                 # Forward Through Encoder
-                test_output = transformer(test_input_tensor, test_target_tensor,
-                                    test_input_mask, test_lookahead_mask)
+                test_output = transformer(test_input_tensor, test_target_input,
+                                        test_input_mask, test_lookahead_mask)
 
                 # Calculate Loss
-                test_target_tensor_out = data[2].to(device)
-                test_loss = criterion(test_output.permute(0,2,1), test_target_tensor_out)
+                test_loss = criterion(test_output.permute(0,2,1), test_target_output)
                 total_test_loss += test_loss
 
                 # Output Sample Strings
-                if i % 100 == 9:
-                    test_input_str = loader.tensor_to_str(test_input_tensor[0], vocab)
+                if i % 100 == 99:
+                    test_input_str = tensor_to_str(test_input_tensor[0], voc)
                     logger.info(f"Sample Input: {test_input_str}")
 
-                    test_target_str = loader.tensor_to_str(test_target_tensor[0], vocab)
+                    test_target_str = tensor_to_str(test_target_tensor[0], voc)
                     logger.info(f"Sample Target: {test_target_str}")
                     
                     softmax_output = F.softmax(test_output[0], dim=-1)
                     _, test_output_tensor = softmax_output.data.topk(1)
-                    test_output_str = loader.tensor_to_str(test_output_tensor.squeeze(), vocab)
+                    test_output_str = tensor_to_str(test_output_tensor.squeeze(), voc)
                     logger.info(f"Sample Output: {test_output_str}")
 
         transformer.train()
         logger.info(f"Epoch {epoch + 1}, total test loss: {total_test_loss/effective_batches:.4f}")  
 
-
-        # Save Checkpoint
         if epoch % 10 == 0:
             save_checkpoint(epoch, transformer, optimizer,
-                            print_loss/10, vocab,
+                            print_loss/10, voc,
                             f"{checkpoint_path}/{model_name}_epoch{epoch}_loss{print_loss/10}")
             logger.info(f"Saved model state at epoch {epoch + 1} with loss {print_loss/10}")
 
-writer.close()
+    writer.close()

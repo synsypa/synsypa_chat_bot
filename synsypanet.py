@@ -3,6 +3,7 @@ from copy import deepcopy
 import torch 
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Variable
 
 # Positional Encoding
 class PositionalEncoding(nn.Module):
@@ -29,7 +30,7 @@ class PositionalEncoding(nn.Module):
         # expand input
         x = x * math.sqrt(self.model_dim)
         # add positional constant
-        x = x + self.pe[:x.size(0), :]
+        x = x + Variable(self.pe[:x.size(0), :], requires_grad=False).cuda()
         return self.dropout(x)
         
 
