@@ -141,7 +141,7 @@ if __name__ == '__main__':
             optimizer.step()
 
             # Track Loss
-            print_loss = loss.item()
+            print_loss += loss.item()
 
             if i % 100 == 99:
                 logger.info(f"{time.time()- start_time :7.2f} s | "
