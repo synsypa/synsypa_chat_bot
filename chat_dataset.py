@@ -26,10 +26,10 @@ def create_vocab(convos, max_freq=5):
 class ConvoDataset(Dataset):
     """ Dataset class of conversations """
 
-    def __init__(self, convos, vocab):
+    def __init__(self, convos, voc):
 
         self.convos = convos
-        self.vocab = vocab
+        self.voc = voc
 
     def __len__(self):
 
@@ -50,9 +50,9 @@ class ConvoDataset(Dataset):
         tokens += string.split()
         tokens.append(EOS_TOKEN)
 
-        token_idx = [self.vocab.stoi[word]
-                    if word in self.vocab.stoi
-                    else self.vocab.stoi[UNK_TOKEN]
+        token_idx = [self.voc.stoi[word]
+                    if word in self.voc.stoi
+                    else self.voc.stoi[UNK_TOKEN]
                     for word in tokens]
 
         return torch.tensor(token_idx)
@@ -84,7 +84,7 @@ def tensor_to_str(tensor, vocab):
     for i in tensor:
         w = vocab.itos[i]
         str_list.append(w)
-        if w == '<pad>':
+        if w == '<eos>' or w == '<pad>':
             break
     return ' '.join(str_list)
         

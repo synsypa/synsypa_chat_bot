@@ -5,7 +5,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
-# Positional Encoding
 class PositionalEncoding(nn.Module):
 
     def __init__(self, model_dim, dropout=0.1, max_len=128):
@@ -85,9 +84,10 @@ class MultiheadAttention(nn.Module):
     def _attention(self, q, k, v, mask):
 
         scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.d_k)
+
         if mask is not None:
             scores = scores.masked_fill(mask == 0, -1e9)
-        
+
         scores = F.softmax(scores, dim=-1)
 
         if self.dropout is not None:
@@ -128,6 +128,8 @@ class BatchNorm(nn.Module):
 
         return x
 
+def stack_layers(module, N):
+    return nn.ModuleList([deepcopy(module) for _ in range(N)])
 
 class EncoderLayer(nn.Module):
     '''
@@ -152,6 +154,29 @@ class EncoderLayer(nn.Module):
         x = x + self.do1(self.attn(x_norm, x_norm, x_norm, mask))
         x_norm = self.bn2(x)
         x = x + self.do2(self.ff(x_norm))
+
+        return x
+
+
+class Encoder(nn.Module):
+    
+    def __init__(self, vocab_size, model_dim, N, n_heads, dropout):
+        
+        super(Encoder, self).__init__()
+
+        self.N = N
+        self.embed = nn.Embedding(vocab_size, model_dim)
+        self.pos = PositionalEncoding(model_dim)
+        self.layers = stack_layers(EncoderLayer(model_dim, n_heads, dropout), N)
+        self.bn = BatchNorm(model_dim)
+
+    def forward(self, source, mask):
+        
+        x = self.embed(source)
+        x = self.pos(x)
+        for i in range(self.N):
+            x = self.layers[i](x, mask)
+        x = self.bn(x)
 
         return x
 
@@ -184,31 +209,6 @@ class DecoderLayer(nn.Module):
         x = x + self.do2(self.attn2(x_norm, e_outputs, e_outputs, input_mask))
         x_norm = self.bn3(x)
         x = x + self.do3(self.ff(x_norm))
-
-        return x
-
-def stack_layers(module, N):
-    return nn.ModuleList([deepcopy(module) for _ in range(N)])
-
-class Encoder(nn.Module):
-    
-    def __init__(self, vocab_size, model_dim, N, n_heads, dropout):
-        
-        super(Encoder, self).__init__()
-
-        self.N = N
-        self.embed = nn.Embedding(vocab_size, model_dim)
-        self.pos = PositionalEncoding(model_dim)
-        self.layers = stack_layers(EncoderLayer(model_dim, n_heads, dropout), N)
-        self.bn = BatchNorm(model_dim)
-
-    def forward(self, source, mask):
-        
-        x = self.embed(source)
-        x = self.pos(x)
-        for i in range(self.N):
-            x = self.layers[i](x, mask)
-        x = self.bn(x)
 
         return x
 

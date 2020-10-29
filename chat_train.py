@@ -29,8 +29,11 @@ def save_checkpoint(epoch, transformer, optimizer,
     return
 
 if __name__ == '__main__':
+    # Model name
+    model_name = f'synsypa_transformer_{date.today()}'
+
     # tensorboard writer
-    writer = SummaryWriter(f'runs/synsypa_transform_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}')
+    writer = SummaryWriter(f'/content/gdrive/My Drive/synsypa_transformer/runs/{model_name}')
 
     # Load conversations 
     convos = pickle.load(open('chat_data/clean_conversations_2020-10-20.pkl', 'rb'))
@@ -64,15 +67,14 @@ if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Initialize Arch Options 
-    model_dim = 512
+    model_dim = 256
     heads = 8
-    n_layers = 2
-    dropout = 0.1
-    epochs = 100
-    
+    n_layers = 4
+    dropout = 0.2
+    epochs = 400
+
     # Checkpointing
-    checkpoint_path = './models/'
-    model_name = f'synsypa_transformer_{date.today()}'
+    checkpoint_path = 'models/'
 
     # Intialize models
     transformer = Transformer(voc, model_dim, n_layers, heads, dropout)
@@ -86,11 +88,19 @@ if __name__ == '__main__':
     # Draw Network
     transformer.eval()
     obs_example = next(iter(train_loader))
-    input_mask_ex, _, lookahead_ex = loader.make_masks(obs_example)
-    writer.add_graph(transformer, (obs_example[0].to(device),
-                                   obs_example[1].to(device),
-                                   input_mask_ex,
-                                   lookahead_ex))
+    # Send Inputs to Device
+    ex_input_tensor = obs_example[0]
+    ex_target_tensor = obs_example[1]
+    # Offset Targets
+    ex_target_input = ex_target_tensor[:, :-1]
+    ex_target_output = ex_target_tensor[:, 1:]
+    # Construct Masks
+    ex_input_mask, _, ex_lookahead_mask = loader.make_masks(ex_input_tensor, ex_target_input)
+
+    writer.add_graph(transformer, (ex_input_tensor,
+                                   ex_target_input,
+                                   ex_input_mask,
+                                   ex_lookahead_mask))
     transformer.train()
 
     # Initialize optimizers
@@ -100,11 +110,13 @@ if __name__ == '__main__':
 
     # Training Loop
     start_time = time.time()
-    print_loss = 0.0
     transformer.train()
 
     for epoch in range(epochs):
-            
+
+        epoch_loss = 0.0
+        print_loss = 0.0
+        
         for i, data in enumerate(train_loader):
             
             # Zero Grad Optimizers
@@ -142,6 +154,7 @@ if __name__ == '__main__':
 
             # Track Loss
             print_loss += loss.item()
+            epoch_loss += loss.item()
 
             if i % 100 == 99:
                 logger.info(f"{time.time()- start_time :7.2f} s | "
@@ -149,6 +162,18 @@ if __name__ == '__main__':
                             f"Loss: {print_loss / 100 :.5f}")
                 writer.add_scalar('Training Loss', print_loss / 100, epoch * len(train_loader) + i)
                 print_loss = 0.0
+
+        # Output Sample Strings
+        input_str = loader.tensor_to_str(input_tensor[0], voc)
+        logger.info(f"Sample Training Input: {input_str}")
+
+        target_str = loader.tensor_to_str(target_tensor[0], voc)
+        logger.info(f"Sample Training Target: {target_str}")
+        
+        softmax_output = F.softmax(output[0], dim=-1)
+        _, output_tensor = softmax_output.data.topk(1)
+        output_str = loader.tensor_to_str(output_tensor.squeeze(), voc)
+        logger.info(f"Sample Training Output: {output_str}")
 
         logger.info(f"Avg Training Batch Time: {(time.time() - start_time)/i :7.2f} s")  
 
@@ -188,28 +213,29 @@ if __name__ == '__main__':
 
                 # Calculate Loss
                 test_loss = criterion(test_output.permute(0,2,1), test_target_output)
-                total_test_loss += test_loss
+                total_test_loss += test_loss.item()
 
                 # Output Sample Strings
-                if i % 100 == 99:
+                if i % 100 == 0:
                     test_input_str = loader.tensor_to_str(test_input_tensor[0], voc)
-                    logger.info(f"Sample Input: {test_input_str}")
+                    logger.info(f"Sample Test Input: {test_input_str}")
 
-                    test_target_str = tensor_to_str(test_target_tensor[0], voc)
-                    logger.info(f"Sample Target: {test_target_str}")
+                    test_target_str = loader.tensor_to_str(test_target_tensor[0], voc)
+                    logger.info(f"Sample Test Target: {test_target_str}")
                     
                     softmax_output = F.softmax(test_output[0], dim=-1)
                     _, test_output_tensor = softmax_output.data.topk(1)
-                    test_output_str = tensor_to_str(test_output_tensor.squeeze(), voc)
-                    logger.info(f"Sample Output: {test_output_str}")
+                    test_output_str = loader.tensor_to_str(test_output_tensor.squeeze(), voc)
+                    logger.info(f"Sample Test Output: {test_output_str}")
 
         transformer.train()
-        logger.info(f"Epoch {epoch + 1}, total test loss: {total_test_loss/effective_batches:.4f}")  
-
-        if epoch % 10 == 0:
+        logger.info(f"Epoch {epoch + 1}, total test loss: {total_test_loss/effective_batches:.4f}")
+        writer.add_scalar('Test Loss', total_test_loss / effective_batches, epoch * len(test_loader))
+        
+        if epoch % 25 == 0:
             save_checkpoint(epoch, transformer, optimizer,
-                            print_loss/10, voc,
-                            f"{checkpoint_path}/{model_name}_epoch{epoch}_loss{print_loss/10}")
-            logger.info(f"Saved model state at epoch {epoch + 1} with loss {print_loss/10}")
-
+                            epoch_loss/len(train_loader), voc,
+                            f"{checkpoint_path}/{model_name}_epoch{epoch}_loss{epoch_loss/len(train_loader):.2f}")
+            logger.info(f"Saved model state at epoch {epoch + 1} with loss {epoch_loss/len(train_loader)}")
+        
     writer.close()
