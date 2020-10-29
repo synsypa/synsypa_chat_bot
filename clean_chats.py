@@ -19,14 +19,21 @@ def unicode_to_ascii(s):
         if unicodedata.category(c) != 'Mn'
     )
 
-def clean_string(s):
+def clean_string(s, remove_punc = False):
     s = re.sub(r"([\<]).*?([\>])", "", s).strip()
-    s = re.sub(r"([.!?])", r" \1", s)
+
+    if remove_punc:
+        s = re.sub(r"([.!?])", r" ", s)
+    else:
+        s = re.sub(r"([.!?])", r" \1", s)
+
     s = re.sub(r"[^a-zA-Z.!?]+", r" ", s)
     s = s.lower()
     return s
 
 if __name__ == "__main__":
+    remove_punc = True
+
     # Load Discord JSON
     with open('chat_data/dht_20200319.txt') as h:
         dis_json = json.load(h)
@@ -77,7 +84,7 @@ if __name__ == "__main__":
             continue
 
         # Clean Message String
-        single_msg['m'] = clean_string(single_msg['m'])
+        single_msg['m'] = clean_string(single_msg['m'], remove_punc=remove_punc)
 
         # # Convert to ASCII
         #single_msg['m'] = unicode_to_ascii(single_msg['m'])
