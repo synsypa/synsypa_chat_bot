@@ -17,11 +17,11 @@ import torch.nn.functional as F
 from synsypanet import Transformer
 
 # Checkpointing
-def save_checkpoint(epoch, transformer, optimizer,
+def save_checkpoint(epoch, model, optimizer,
                     loss, vocab, chk_path):
     save_obj = {'epoch': epoch,
-                'transformer': transformer,
-                'optimizer': optimizer,
+                'model_state': model.state_dict(),
+                'optimizer_state': optimizer.state_dict(),
                 'loss': loss,
                 'vocab': vocab}
     
@@ -31,37 +31,27 @@ def save_checkpoint(epoch, transformer, optimizer,
 if __name__ == '__main__':
     # Model name
     model_name = f'synsypa_transformer_{date.today()}'
-
+    
     # tensorboard writer
-    writer = SummaryWriter(f'/content/gdrive/My Drive/synsypa_transformer/runs/{model_name}')
+    writer = SummaryWriter(f'runs/{model_name}')
 
     # Load conversations 
     convos = pickle.load(open('chat_data/clean_conversations_2020-10-20.pkl', 'rb'))
     voc = loader.create_vocab(convos, 3)
 
     # Split dataset
-    #random.shuffle(convos)
-    #test_convos = convos[:5000]
-    #train_convos = convos[5000:]
-
-    test_convos = convos[:5]
-    train_convos = convos[:5]
-    batch_size = 1
+    random.shuffle(convos)
+    train_convos = convos
+    batch_size = 64
+    max_seq = 40
 
     train_dataset = loader.ConvoDataset(train_convos, voc)
-    test_dataset = loader.ConvoDataset(test_convos, voc)
 
     train_loader = DataLoader(train_dataset,
-                            collate_fn = loader.pad_collate,
-                            batch_size = batch_size,
-                            shuffle= True,
-                            num_workers = 0)
-
-    test_loader = DataLoader(test_dataset,
-                            collate_fn = loader.pad_collate,
-                            batch_size = batch_size,
-                            shuffle= True,
-                            num_workers = 0)
+                              collate_fn = loader.pad_collate,
+                              batch_size = batch_size,
+                              shuffle= True,
+                              num_workers = 0)
                             
     # Setup Device
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -70,8 +60,8 @@ if __name__ == '__main__':
     model_dim = 256
     heads = 8
     n_layers = 4
-    dropout = 0.2
-    epochs = 400
+    dropout = 0.1
+    epochs = 200
 
     # Checkpointing
     checkpoint_path = 'models/'
@@ -163,79 +153,16 @@ if __name__ == '__main__':
                 writer.add_scalar('Training Loss', print_loss / 100, epoch * len(train_loader) + i)
                 print_loss = 0.0
 
-        # Output Sample Strings
-        input_str = loader.tensor_to_str(input_tensor[0], voc)
-        logger.info(f"Sample Training Input: {input_str}")
-
-        target_str = loader.tensor_to_str(target_tensor[0], voc)
-        logger.info(f"Sample Training Target: {target_str}")
-        
-        softmax_output = F.softmax(output[0], dim=-1)
-        _, output_tensor = softmax_output.data.topk(1)
-        output_str = loader.tensor_to_str(output_tensor.squeeze(), voc)
-        logger.info(f"Sample Training Output: {output_str}")
-
         logger.info(f"Avg Training Batch Time: {(time.time() - start_time)/i :7.2f} s")  
-
-        # Check Eval Example
-        with torch.no_grad():
-            transformer.eval()
-            total_test_loss = 0.0
-            effective_batches = 0
-
-            for i, data in enumerate(test_loader):
-                if i % 100 == 0:
-                    logger.debug(f"Epoch-Batch {epoch + 1}:{i} in test-set evaluation.")
-                effective_batches += 1
-
-                # Send Inputs to Device
-                test_input_tensor = data[0]
-                test_target_tensor = data[1]
-
-                # Offset Targets
-                test_target_input = test_target_tensor[:, :-1]
-                test_target_output = test_target_tensor[:, 1:]
-
-                # Construct Masks
-                test_input_mask, _, test_lookahead_mask = loader.make_masks(test_input_tensor, test_target_input)
-
-                # Everything to device
-                test_input_tensor = test_input_tensor.to(device)
-                test_target_tensor = test_target_tensor.to(device)
-                test_target_input = test_target_input.to(device)
-                test_target_output = test_target_output.to(device)
-                test_input_mask = test_input_mask.to(device)
-                test_lookahead_mask = test_lookahead_mask.to(device)
-
-                # Forward Through Encoder
-                test_output = transformer(test_input_tensor, test_target_input,
-                                        test_input_mask, test_lookahead_mask)
-
-                # Calculate Loss
-                test_loss = criterion(test_output.permute(0,2,1), test_target_output)
-                total_test_loss += test_loss.item()
-
-                # Output Sample Strings
-                if i % 100 == 0:
-                    test_input_str = loader.tensor_to_str(test_input_tensor[0], voc)
-                    logger.info(f"Sample Test Input: {test_input_str}")
-
-                    test_target_str = loader.tensor_to_str(test_target_tensor[0], voc)
-                    logger.info(f"Sample Test Target: {test_target_str}")
-                    
-                    softmax_output = F.softmax(test_output[0], dim=-1)
-                    _, test_output_tensor = softmax_output.data.topk(1)
-                    test_output_str = loader.tensor_to_str(test_output_tensor.squeeze(), voc)
-                    logger.info(f"Sample Test Output: {test_output_str}")
-
-        transformer.train()
-        logger.info(f"Epoch {epoch + 1}, total test loss: {total_test_loss/effective_batches:.4f}")
-        writer.add_scalar('Test Loss', total_test_loss / effective_batches, epoch * len(test_loader))
         
         if epoch % 25 == 0:
             save_checkpoint(epoch, transformer, optimizer,
                             epoch_loss/len(train_loader), voc,
                             f"{checkpoint_path}/{model_name}_epoch{epoch}_loss{epoch_loss/len(train_loader):.2f}")
             logger.info(f"Saved model state at epoch {epoch + 1} with loss {epoch_loss/len(train_loader)}")
-        
+
+    logger.info('Complete')
+    save_checkpoint(epoch, transformer, optimizer,
+                    epoch_loss/len(train_loader), voc,
+                    f"{checkpoint_path}/{model_name}_epoch{epochs}_loss{epoch_loss/len(train_loader):.2f}")
     writer.close()
