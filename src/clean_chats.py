@@ -1,8 +1,11 @@
+import os
 import json
 import itertools
 import re
-import numpy as np
+import unicodedata
 from datetime import date
+
+import pickle
 
 
 def create_user_reference(discord_json):
@@ -11,16 +14,30 @@ def create_user_reference(discord_json):
     user_ref = {user_index.index(id):user_ids[id] for id in user_index}
     return(user_ref)
 
-def clean_string(s):
+def unicode_to_ascii(s):
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', s)
+        if unicodedata.category(c) != 'Mn'
+    )
+
+def clean_string(s, remove_punc = False):
     s = re.sub(r"([\<]).*?([\>])", "", s).strip()
-    s = re.sub(r"([.!?])", r" \1", s)
+
+    if remove_punc:
+        s = re.sub(r"([.!?])", r" ", s)
+    else:
+        s = re.sub(r"([.!?])", r" \1", s)
+
     s = re.sub(r"[^a-zA-Z.!?]+", r" ", s)
     s = s.lower()
     return s
 
 if __name__ == "__main__":
+    remove_punc = True
+    data_dir = os.path.join(os.path.dirname(__file__), '..', 'bin', 'chat_data')
+
     # Load Discord JSON
-    with open('chat_data/dht_20200319.txt') as h:
+    with open(os.path.join(data_dir, 'dht_20200319.txt')) as h:
         dis_json = json.load(h)
 
     # Create user index reference
@@ -38,9 +55,19 @@ if __name__ == "__main__":
     o_speak = None
     need_resp = False
     resp_ready = False
+    bots = [6,7,8,11,12,13,14,15,17,18,19,20]
 
     for message in chats:
         single_msg = message
+        
+        # Skip messages with embeds or links
+        if ('e' in single_msg or 'a' in single_msg):
+            continue
+
+        # Skip messages with no message
+        if 'm' not in single_msg:
+            continue
+
         # Skip messages with with no Text
         if not single_msg['m']:
             continue
@@ -50,17 +77,19 @@ if __name__ == "__main__":
             single_msg['m'][0] in ['(','[','{']):
             continue
             
-        # Skip messages with embeds or links
-        if ('e' in single_msg or 'a' in single_msg):
-            continue
-            
-        # Skip messages from Quote Bot 
-        # TODO Skip all bot messages
-        if user_ref[single_msg['u']] == 'quote-bot':
+        # Skip messages from quotebot 
+        # if user_ref[single_msg['u']] == 'quote-bot':
+        #     continue
+
+        # Skip messages from bots
+        if single_msg['u'] in bots:
             continue
 
         # Clean Message String
-        single_msg['m'] = clean_string(single_msg['m'])
+        single_msg['m'] = clean_string(single_msg['m'], remove_punc=remove_punc)
+
+        # # Convert to ASCII
+        #single_msg['m'] = unicode_to_ascii(single_msg['m'])
 
         # Parse Others' Messages
         if user_ref[single_msg['u']] != "synsypa":
@@ -68,7 +97,7 @@ if __name__ == "__main__":
             # This should only trigger if the last speaker was response
             if (need_resp and resp_ready 
                 and k_time < o_time + (2 * 60 * 1000)):
-                responses.append((' '.join(o_msg), ' '.join(k_msg)))
+                responses.append((' '.join(o_msg).strip(), ' '.join(k_msg).strip()))
                 k_msg, o_msg = [], []
                 k_time, o_time = None, None
                 o_speak = None
@@ -111,7 +140,7 @@ if __name__ == "__main__":
             # Message and response ready, but incoming message is not w/i 2 mins
             elif (need_resp and resp_ready 
                 and k_time < o_time + (2 * 60 * 1000)):
-                responses.append((' '.join(o_msg), ' '.join(k_msg)))
+                responses.append((' '.join(o_msg).strip(), ' '.join(k_msg).strip()))
                 k_msg, o_msg = [], []
                 k_time, o_time = None, None
                 o_speak = None
@@ -126,6 +155,6 @@ if __name__ == "__main__":
 
     # Write the leftover message and response if both are ready
     if need_resp and resp_ready and k_time < o_time + (5 * 60 * 1000):
-        responses.append((' '.join(o_msg), ' '.join(k_msg)))
+        responses.append((' '.join(o_msg).strip(), ' '.join(k_msg).strip()))
 
-    np.save(f'chat_data/clean_conversations_{date.today()}.npy', responses)
+    pickle.dump(responses, open(os.path.join(data_dir, f'/clean_conversations_{date.today()}.pkl'), 'wb'))
