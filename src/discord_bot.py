@@ -60,13 +60,15 @@ async def hey(ctx, *text : str):
                         ctx.message.channel.name,
                         ' '.join(text)]))
         
-    output = p.gen_reply(str(text), net, vocab_chk)
+    parsed_input, output = p.gen_reply(str(text), net, vocab_chk)
 
-    logger.info(log_msg(['formatted_msg', output]))
+    logger.info(log_msg(['parsed_input', parsed_input]))
     
     if not output:
         output = 'Error: Empty Response'
     
+    logger.info(log_msg(['formatted_msg', output]))
+
     await ctx.channel.send(output)
     logger.info(log_msg(['sent_message', ctx.message.channel.name]))
     

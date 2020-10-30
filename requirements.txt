@@ -1,4 +1,4 @@
-pytorch
+torch == 1.6.0
 torchtext == 0.3.1
-discord.py
-asyncio
+discord.py == 1.5.1
+asyncio == 3.4.3
