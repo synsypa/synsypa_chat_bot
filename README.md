@@ -11,7 +11,7 @@ Trained over 200 epochs on Google Colab
 
 TODO:
 
-    - Different Generation
-        - less greedy
-        - manage `<unk>` better
-    - Iterate Hyperparams to adjust fit
+- Different Generation
+    - less greedy
+    - manage `<unk>` better
+- Iterate Hyperparams to adjust fit
