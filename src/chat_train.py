@@ -33,7 +33,6 @@ if __name__ == '__main__':
     # Directory
     data_dir = os.path.join(os.path.dirname(__file__), '..', 'bin')
 
-
     # Model name
     model_name = f'synsypa_transformer_{date.today()}'
     

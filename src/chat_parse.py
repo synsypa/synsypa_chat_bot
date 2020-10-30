@@ -3,6 +3,8 @@ import torch
 
 import torch.nn.functional as F
 
+from random import randint
+
 from src.chat_dataset import EOS_TOKEN, SOS_TOKEN, UNK_TOKEN, make_masks
 from src.clean_chats import clean_string
 from src.synsypanet import Transformer
@@ -35,7 +37,7 @@ def predict_reply(sentence, net, voc, max_seq=40):
     # Construct Masks
     input_mask, _, lookahead_mask = make_masks(input_tensor, output_tensor)
 
-    for i in range(max_seq):
+    for _ in range(max_seq):
         predictions = net(input_tensor, output_tensor,
                             input_mask, lookahead_mask)
         predictions = predictions[:, -1, :]
@@ -46,6 +48,10 @@ def predict_reply(sentence, net, voc, max_seq=40):
         # return the result if the predicted_id is equal to the end token
         if result_tensor[0] == voc.stoi[EOS_TOKEN]:
             break
+        
+        # If an Unknown token is generated, take a random other word
+        if result_tensor[0] == voc.stoi[UNK_TOKEN]:
+            result_tensor = torch.tensor([randint(4, len(voc)-1)]).unsqueeze(0)
 
         # concatenated the predicted_id to the output 
         output_tensor = torch.cat([output_tensor, result_tensor], axis=-1)
@@ -81,7 +87,7 @@ if __name__ == '__main__':
     net.load_state_dict(checkpoint['model_state'])
     net.eval()
 
-    test_input, test_output = gen_reply("who even?", net, vocab_chk)
+    test_input, test_output = gen_reply("who evasdfasden?", net, vocab_chk)
 
     print(test_input)
     print(test_output)

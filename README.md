@@ -6,3 +6,5 @@ from Discord where wynsypa is always the respondant.
 
 Discord integration recieved an input sentence and generates a predicted output
 in synsypa's style
+
+Trained over 200 epochs on Google Colab
