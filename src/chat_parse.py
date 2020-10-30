@@ -3,9 +3,9 @@ import torch
 
 import torch.nn.functional as F
 
-from chat_dataset import EOS_TOKEN, SOS_TOKEN, UNK_TOKEN, make_masks
-from clean_chats import clean_string
-from synsypanet import Transformer
+from src.chat_dataset import EOS_TOKEN, SOS_TOKEN, UNK_TOKEN, make_masks
+from src.clean_chats import clean_string
+from src.synsypanet import Transformer
 
 
 def tensor_to_str(tensor, vocab):

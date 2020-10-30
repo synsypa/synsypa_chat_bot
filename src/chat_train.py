@@ -5,7 +5,7 @@ import random
 from datetime import datetime, date
 import time
 
-import chat_dataset as loader
+import src.chat_dataset as loader
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -15,7 +15,7 @@ import torchtext
 import torch.nn as nn
 import torch.nn.functional as F
 
-from synsypanet import Transformer
+from src.synsypanet import Transformer
 
 # Checkpointing
 def save_checkpoint(epoch, model, optimizer,

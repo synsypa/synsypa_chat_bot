@@ -5,8 +5,8 @@ import torch
 import os
 from logzero import logger
 
-import chat_parse as p
-from synsypanet import Transformer
+import src.chat_parse as p
+from src.synsypanet import Transformer
 
 # Logging Helper
 def log_msg(data):
