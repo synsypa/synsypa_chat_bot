@@ -9,9 +9,10 @@ in synsypa's style
 
 Trained over 200 epochs on Google Colab
 
-TODO:
+To Dos:
 
 - Different Generation
     - less greedy
     - manage `<unk>` better
 - Iterate Hyperparams to adjust fit
+- Fine Tune a Pre-trained model (BERT? GPT-2?)
