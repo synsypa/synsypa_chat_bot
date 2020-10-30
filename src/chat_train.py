@@ -1,3 +1,4 @@
+import os
 from logzero import logger
 import pickle
 import random
@@ -29,14 +30,20 @@ def save_checkpoint(epoch, model, optimizer,
     return
 
 if __name__ == '__main__':
+    # Directory
+    data_dir = os.path.join(os.path.dirname(__file__), '..', 'bin')
+
+
     # Model name
     model_name = f'synsypa_transformer_{date.today()}'
     
     # tensorboard writer
-    writer = SummaryWriter(f'runs/{model_name}')
+    writer = SummaryWriter(os.path.join(data_dir, 'runs', {model_name}))
 
     # Load conversations 
-    convos = pickle.load(open('chat_data/clean_conversations_2020-10-20.pkl', 'rb'))
+    convos = pickle.load(
+        open(os.path.join(data_dir, 'chat_data', 'clean_conversations_2020-10-20.pkl'), 'rb')
+    )
     voc = loader.create_vocab(convos, 3)
 
     # Split dataset
@@ -64,7 +71,7 @@ if __name__ == '__main__':
     epochs = 200
 
     # Checkpointing
-    checkpoint_path = 'models/'
+    checkpoint_path = os.path.join(data_dir, 'models/')
 
     # Intialize models
     transformer = Transformer(voc, model_dim, n_layers, heads, dropout)

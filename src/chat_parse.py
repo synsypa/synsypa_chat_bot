@@ -1,3 +1,4 @@
+import os
 import torch
 
 import torch.nn.functional as F
@@ -62,7 +63,7 @@ def gen_reply(sentence, net, voc, max_seq=40):
 
 
 if __name__ == '__main__':
-    checkpoint_path = 'models/'
+    checkpoint_path = os.path.join(os.path.dirname(__file__), '..', 'bin', 'models')
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # TKTK: Checkpointing should save these values
@@ -72,7 +73,7 @@ if __name__ == '__main__':
     dropout = 0.1
     model_name = 'synsypa_transformer_2020-10-29_epoch200_loss0.18'
     
-    checkpoint = torch.load(f'{checkpoint_path}/{model_name}',
+    checkpoint = torch.load(os.path.join(checkpoint_path, model_name),
                             map_location=device)
     vocab_chk = checkpoint['vocab']
 

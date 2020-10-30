@@ -1,4 +1,5 @@
 import pickle
+import os
 
 from collections import Counter
 
@@ -80,7 +81,9 @@ def make_masks(input_tensor, target_tensor):
     return input_mask, target_mask, lookahead_mask
 
 if __name__ == "__main__":
-    convos = pickle.load(open('chat_data/clean_conversations_2020-10-20.pkl', 'rb'))
+    data_dir = os.path.join(os.path.dirname(__file__), '..', 'bin', 'chat_data')
+    convos = pickle.load(open(os.path.join(data_dir, 'clean_conversations_2020-10-20.pkl'),
+                         'rb'))
 
     vocab = create_vocab(convos)
     test = ConvoDataset(convos, vocab)

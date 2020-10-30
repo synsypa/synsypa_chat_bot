@@ -29,9 +29,8 @@ heads = 8
 n_layers = 4
 dropout = 0.1
 
-checkpoint_path = 'models/'
-checkpoint = torch.load(f'{checkpoint_path}/'
-                        f'synsypa_transformer_2020-10-29_epoch200_loss0.18',
+checkpoint_path = os.path.join(os.path.dirname(__file__), '..', 'bin', 'models')
+checkpoint = torch.load(os.path.join(checkpoint_path, 'synsypa_transformer_2020-10-29_epoch200_loss0.18'),
                         map_location=device)
 vocab_chk = checkpoint['vocab']
 

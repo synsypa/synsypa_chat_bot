@@ -1,3 +1,4 @@
+import os
 import json
 import itertools
 import re
@@ -33,9 +34,10 @@ def clean_string(s, remove_punc = False):
 
 if __name__ == "__main__":
     remove_punc = True
+    data_dir = os.path.join(os.path.dirname(__file__), '..', 'bin', 'chat_data')
 
     # Load Discord JSON
-    with open('chat_data/dht_20200319.txt') as h:
+    with open(os.path.join(data_dir, 'dht_20200319.txt')) as h:
         dis_json = json.load(h)
 
     # Create user index reference
@@ -155,4 +157,4 @@ if __name__ == "__main__":
     if need_resp and resp_ready and k_time < o_time + (5 * 60 * 1000):
         responses.append((' '.join(o_msg).strip(), ' '.join(k_msg).strip()))
 
-    pickle.dump(responses, open(f'chat_data/clean_conversations_{date.today()}.pkl', 'wb'))
+    pickle.dump(responses, open(os.path.join(data_dir, f'/clean_conversations_{date.today()}.pkl'), 'wb'))
