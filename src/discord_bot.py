@@ -60,7 +60,7 @@ async def hey(ctx, *text : str):
                         ctx.message.channel.name,
                         ' '.join(text)]))
         
-    output = p.gen_reply(str(text), net, vocab_chk)
+    _ ,output = p.gen_reply(str(text), net, vocab_chk)
 
     logger.info(log_msg(['formatted_msg', output]))
     
