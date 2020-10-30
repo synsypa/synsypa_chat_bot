@@ -79,15 +79,6 @@ def make_masks(input_tensor, target_tensor):
     #nopeak_mask = target_mask & nopeak_mask
     return input_mask, target_mask, lookahead_mask
 
-def tensor_to_str(tensor, vocab):
-    str_list = []
-    for i in tensor:
-        w = vocab.itos[i]
-        str_list.append(w)
-        if w == '<eos>' or w == '<pad>':
-            break
-    return ' '.join(str_list)
-        
 if __name__ == "__main__":
     convos = pickle.load(open('chat_data/clean_conversations_2020-10-20.pkl', 'rb'))
 
