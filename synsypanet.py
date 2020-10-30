@@ -189,25 +189,25 @@ class DecoderLayer(nn.Module):
 
         super(DecoderLayer, self).__init__()
 
-        self.bn1 = BatchNorm(model_dim)
+        self.norm1 = nn.LayerNorm(model_dim)
         self.attn1 = MultiheadAttention(n_heads, model_dim, dropout)
         self.do1 = nn.Dropout(dropout)
 
-        self.bn2 = BatchNorm(model_dim)
+        self.norm2 = nn.LayerNorm(model_dim)
         self.attn2 = MultiheadAttention(n_heads, model_dim, dropout)
         self.do2 = nn.Dropout(dropout)
 
-        self.bn3 = BatchNorm(model_dim)
+        self.norm3 = nn.LayerNorm(model_dim)
         self.ff = FeedForward(model_dim, dropout=dropout)
         self.do3 = nn.Dropout(dropout)
 
     def forward(self, x, e_outputs, input_mask, lookahead_mask):
 
-        x_norm = self.bn1(x)
+        x_norm = self.norm1(x)
         x = x + self.do1(self.attn1(x_norm, x_norm, x_norm, lookahead_mask))
-        x_norm = self.bn2(x)
+        x_norm = self.norm2(x)
         x = x + self.do2(self.attn2(x_norm, e_outputs, e_outputs, input_mask))
-        x_norm = self.bn3(x)
+        x_norm = self.norm3(x)
         x = x + self.do3(self.ff(x_norm))
 
         return x
@@ -222,7 +222,7 @@ class Decoder(nn.Module):
         self.embed = nn.Embedding(vocab_size, model_dim)
         self.pos = PositionalEncoding(model_dim)
         self.layers = stack_layers(DecoderLayer(model_dim, n_heads, dropout), N)
-        self.bn = BatchNorm(model_dim)
+        self.norm = nn.LayerNorm(model_dim)
 
     def forward(self, target, e_outputs, input_mask, lookahead_mask):
         
@@ -230,7 +230,7 @@ class Decoder(nn.Module):
         x = self.pos(x)
         for i in range(self.N):
             x = self.layers[i](x, e_outputs, input_mask, lookahead_mask)
-        x = self.bn(x)
+        x = self.norm(x)
 
         return x
 
@@ -251,4 +251,6 @@ class Transformer(nn.Module):
         output = self.fc1(d_output)
 
         return output
+
+
 
