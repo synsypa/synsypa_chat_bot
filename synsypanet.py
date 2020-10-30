@@ -140,19 +140,19 @@ class EncoderLayer(nn.Module):
 
         super(EncoderLayer, self).__init__()
 
-        self.bn1 = BatchNorm(model_dim)
+        self.norm1 = nn.LayerNorm(model_dim)
         self.attn = MultiheadAttention(n_heads, model_dim, dropout)
         self.do1 = nn.Dropout(dropout)
 
-        self.bn2 = BatchNorm(model_dim)
+        self.norm2 = nn.LayerNorm(model_dim)
         self.ff = FeedForward(model_dim, dropout=dropout)
         self.do2 = nn.Dropout(dropout)
 
     def forward(self, x, mask):
         
-        x_norm = self.bn1(x)
+        x_norm = self.norm1(x)
         x = x + self.do1(self.attn(x_norm, x_norm, x_norm, mask))
-        x_norm = self.bn2(x)
+        x_norm = self.norm2(x)
         x = x + self.do2(self.ff(x_norm))
 
         return x
@@ -168,7 +168,7 @@ class Encoder(nn.Module):
         self.embed = nn.Embedding(vocab_size, model_dim)
         self.pos = PositionalEncoding(model_dim)
         self.layers = stack_layers(EncoderLayer(model_dim, n_heads, dropout), N)
-        self.bn = BatchNorm(model_dim)
+        self.norm = nn.LayerNorm(model_dim)
 
     def forward(self, source, mask):
         
@@ -176,7 +176,7 @@ class Encoder(nn.Module):
         x = self.pos(x)
         for i in range(self.N):
             x = self.layers[i](x, mask)
-        x = self.bn(x)
+        x = self.norm(x)
 
         return x
 
