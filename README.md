@@ -8,3 +8,9 @@ Discord integration recieved an input sentence and generates a predicted output
 in synsypa's style
 
 Trained over 200 epochs on Google Colab
+
+TODO:
+    * Different Generation
+        * less greedy
+        * manage `<unk>` better
+    * Iterate Hyperparams to adjust fit
